@@ -6,12 +6,15 @@ import {useTheme} from "@/components/theme-provider.jsx";
 import CreatePost from "@/components/CreatePost.jsx";
 import api from '@/lib/axios';
 import { toast } from 'sonner';
+import userContext from '@/user-context';
+import { useContext } from 'react';
 
 const Home = () => {
     const [posts, setPosts] = useState([]);
     const { theme } = useTheme();
     const isDarkTheme = theme === 'dark';
     const token = localStorage.getItem("access_token");
+    const user = useContext(userContext);
 
 
     const fetchPosts = async () => {
@@ -44,7 +47,7 @@ const Home = () => {
                             <CreatePost onPostCreated={fetchPosts} />
                         </div>
                         {posts.map((post) => (
-                            <PostCard post={post} key={post.id} />
+                            <PostCard post={post} key={post.id} user={user}/>
                         ))}
                     </div>
                 </div>

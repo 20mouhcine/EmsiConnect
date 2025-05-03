@@ -1,18 +1,17 @@
-from django.shortcuts import render
 
 # Create your views here.
-from django.shortcuts import render
 from django.contrib.auth.hashers import make_password,check_password
 from django.core.mail import send_mail
 from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import User, Token,Posts
-from .serializers import UserSerializer, TokenSerializer,PostsSerializer
+from .models import User, Token, Posts, Likes
+from .serializers import UserSerializer, TokenSerializer,PostsSerializer, MyTokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
 from django.conf import settings
-from datetime import datetime, timedelta
+from django.shortcuts import get_object_or_404
+from datetime import  timedelta
 import hashlib
-from rest_framework.decorators import api_view
 import uuid
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -198,6 +197,10 @@ class LoginView(APIView):
         
 
 
+class MyTokenObtainPairView(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer
+
+
 class checkUserView(APIView):
     def post(self, request, format=None):
         email = request.data["email"]
@@ -278,4 +281,65 @@ class PostsDetailAPIView(APIView):
         post = self.get_object(pk)
         post.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
 
+
+class LikePostAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, pk):
+        """Get post details with like information"""
+        post = get_object_or_404(Posts, pk=pk)
+        serializer = PostsSerializer(post)
+        return Response(serializer.data)
+    
+    def post(self, request, pk):
+        """Add a like to the post"""
+        post = get_object_or_404(Posts, pk=pk)
+        user = request.user
+
+        # Check if the user has already liked the post
+        if Likes.objects.filter(post=post, user=user).exists():
+            return Response({"message": "You have already liked this post."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create the like
+        Likes.objects.create(post=post, user=user)
+        
+        # Return the updated like count
+        return Response({
+            "message": "Post liked successfully!",
+            "num_likes": post.num_likes()
+        }, status=status.HTTP_200_OK)
+    
+    def delete(self, request, pk):
+        """Remove a like from the post"""
+        post = get_object_or_404(Posts, pk=pk)
+        user = request.user
+
+        # Try to find and delete the like
+        try:
+            like = Likes.objects.get(post=post, user=user)
+            like.delete()
+            return Response({
+                "message": "Post unliked successfully!",
+                "num_likes": post.num_likes()
+            }, status=status.HTTP_200_OK)
+        except Likes.DoesNotExist:
+            return Response({"message": "You haven't liked this post yet."}, status=status.HTTP_400_BAD_REQUEST)
+        
+class LikeStatusAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, pk):
+        """Get the like status for the current user and total like count"""
+        post = get_object_or_404(Posts, pk=pk)
+        user = request.user
+        
+        # Check if user has liked the post
+        user_has_liked = Likes.objects.filter(post=post, user=user).exists()
+        
+        # Return the like status and count using the model method
+        return Response({
+            "user_has_liked": user_has_liked,
+            "num_likes": post.num_likes()
+        }, status=status.HTTP_200_OK)

@@ -48,7 +48,7 @@ class Commentaire(models.Model):
     content = models.TextField()
 
 
-    def __str__(self):
+    def __str__(self):  
         return f"Comment by {self.user.name} on {self.post.name}"
 
 
@@ -57,8 +57,11 @@ class Commentaire(models.Model):
 class Likes(models.Model):
     post = models.ForeignKey(Posts, on_delete=models.CASCADE, related_name='likes', null=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
-    num_likes = models.IntegerField(default=0)
+    class Meta:
+        # This ensures a user can only like a post once
+        unique_together = ('post', 'user')
+        verbose_name_plural = 'Likes'
 
 
     def __str__(self):
-        return f"Like by {self.user.name} on {self.post.name}"
+        return f"Like by {self.user.username} on {self.post.id}"

@@ -8,10 +8,17 @@ import ListeEtudiants from "./screens/ListeEtudiants";
 import { ThemeProvider } from "./components/theme-provider";
 import PrivateRoute from "@/components/PrivateRoute.jsx";
 import { Toaster } from "sonner";
+import userContext from "./user-context";
+import { useState } from "react";
+import { UserProvider } from "./user-context";
+import { User } from "lucide-react";
 
 function App() {
+  const [user, setUser] = useState(null);
   return (
     <ThemeProvider>    
+      <UserProvider value={[user,setUser]}>
+
       <Toaster position="top-center" richColors />
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -22,6 +29,7 @@ function App() {
           <Route path="/utilisateurs" element={<ListeEtudiants />} />
         </Route>
       </Routes>
+      </UserProvider>
     </ThemeProvider>
   );
 }

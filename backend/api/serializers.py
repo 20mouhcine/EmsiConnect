@@ -2,6 +2,8 @@ from rest_framework import serializers
 from .models import User, Token,Posts, Commentaire, Likes
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
 
 User = get_user_model()
 
@@ -14,16 +16,32 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'password', 'role', 'profile_picture']
 
     def create(self, validated_data):
-        # Utilise set_password pour hacher le mot de passe
         user = User(
             email=validated_data['email'],
-            username=validated_data['username'],  # username is the same as email
-            role=validated_data.get('role', 'etudiant'),  # default role is 'etudiant'
+            username=validated_data['username'],  
+            role=validated_data.get('role', 'etudiant'),  
             profile_picture=validated_data.get('profile_picture', None),
         )
-        user.set_password(validated_data['password'])  # hachage du mot de passe
+        user.set_password(validated_data['password'])  
         user.save()
         return user
+    
+
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs):
+        data = super().validate(attrs)
+
+        # Ajout des infos utilisateur à la réponse
+        data['user'] = {
+            'id': self.user.id,
+            'email': self.user.email,
+            'username': self.user.username,
+            'role': self.user.role,
+            'profile_picture': self.user.profile_picture.url if self.user.profile_picture else None,
+        }
+
+        return data
+
 
 class TokenSerializer(serializers.ModelSerializer):
     class Meta:
@@ -38,7 +56,7 @@ class CommentaireSerializer(serializers.ModelSerializer):
 class LikesSerializer(serializers.ModelSerializer):
     class Meta:
         model = Likes
-        fields = ['user']
+        fields = ['user','post']
 
         
 class PostsSerializer(serializers.ModelSerializer):

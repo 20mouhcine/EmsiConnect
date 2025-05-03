@@ -12,9 +12,12 @@ import { Link, useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import axios from "axios";
+import { useContext } from "react";
+import userContext from "@/user-context";
 
 export function LoginForm({ className, ...props }) {
   const navigate = useNavigate();
+  const [user, setUser] = useContext(userContext);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -101,6 +104,7 @@ export function LoginForm({ className, ...props }) {
       localStorage.setItem('access_token', access_token);
       localStorage.setItem("refresh_token", response.data.refresh);
 
+      setUser(response.data.user, JSON.stringify(response.data.user));
 
       setTimeout(() => {
         navigate("/");
