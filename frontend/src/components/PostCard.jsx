@@ -15,7 +15,6 @@ import {
   Drawer,
   DrawerClose,
   DrawerContent,
-  DrawerDescription,
   DrawerFooter,
   DrawerHeader,
   DrawerTitle,
@@ -23,6 +22,7 @@ import {
 } from "@/components/ui/drawer";
 import { Input } from "./ui/input";
 import { Send } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 import {
   DropdownMenu,
@@ -30,7 +30,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import userContext from "@/user-context";
+import CommentCard from "./commentCard";
 
 const PostCard = ({ post }) => {
   const { theme } = useTheme();
@@ -38,6 +38,9 @@ const PostCard = ({ post }) => {
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(post.num_likes || 0);
   const [isLoading, setIsLoading] = useState(false);
+  const [commentCount, setCommentCount] = useState(post.num_comments || 0);
+  const [content, setContent] = useState("");
+  const [comments, setComments] = useState([]);
 
   // Function to safely format the date
   const formatPostDate = (dateString) => {
@@ -63,6 +66,18 @@ const PostCard = ({ post }) => {
 
     checkLikeStatus();
   }, [post.id]);
+
+  useEffect(() => {
+    const fetchComments = async () => {
+      try {
+        const response = await api.get(`/posts/${post.id}/comments/`);
+        setComments(response.data);
+      } catch (error) {
+        console.error("Error fetching comments:", error);
+      }
+    };
+    fetchComments();
+  }, []);
 
   const handleLike = async () => {
     if (isLoading) return;
@@ -94,6 +109,28 @@ const PostCard = ({ post }) => {
     }
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append("content", content);
+    try {
+      const response = await api.post(
+        `/posts/${post.id}/comments/create/`,
+        formData,
+        {
+          headers: {
+            Authorization: "Bearer " + localStorage.getItem("access_token"),
+          },
+        }
+      );
+      setCommentCount(response.data.num_comments);
+      setContent("");
+    } catch (error) {
+      console.error("Error submitting comment:", error);
+      alert("Failed to submit comment. Please try again.");
+    }
+  };
+
   return (
     <Card className={`mb-4 ${isDarkTheme ? "bg-black" : "bg-white"}`}>
       <div className="p-3 sm:p-4">
@@ -101,7 +138,11 @@ const PostCard = ({ post }) => {
           <div className="flex items-center gap-2 sm:gap-3">
             <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
               <AvatarImage
-                src={`http://127.0.0.1:8000${post.user.profile_picture}`}
+                src={
+                  post.user?.profile_picture?.startsWith("http")
+                    ? post.user.profile_picture
+                    : `http://127.0.0.1:8000${post.user.profile_picture}`
+                }
               />
               <AvatarFallback>
                 {post.user?.username?.substring(0, 2).toUpperCase() || "UK"}
@@ -138,13 +179,13 @@ const PostCard = ({ post }) => {
         {post.media && (
           <div className="rounded-lg overflow-hidden mb-3 sm:mb-4">
             <img
-              src={`http://127.0.0.1:8000${post.media}`}
+              src={
+                post.media?.startsWith("http")
+                  ? post.media
+                  : `http://127.0.0.1:8000${post.media}`
+              }
               alt="Post content"
               className="w-full object-cover max-h-96"
-              onError={(e) => {
-                console.error("Image failed to load:", post.media);
-                e.target.onerror = null; // Prevent infinite error loop
-              }}
             />
           </div>
         )}
@@ -166,38 +207,48 @@ const PostCard = ({ post }) => {
             </span>
           </Button>
 
-          <Drawer>
+          <Drawer className="">
             <DrawerTrigger asChild>
-              <Button 
+              <Button
                 variant="ghost"
                 size="sm"
                 className="h-8 px-2 sm:h-9 sm:px-3 flex items-center"
               >
                 <MessageCircle className="h-4 w-4 mr-1 sm:mr-2" />
-                <span className="xs:inline">
-                  {post.num_comments || 0} Comments
-                </span>
+                <span className="xs:inline">{commentCount || 0} Comments</span>
               </Button>
             </DrawerTrigger>
-            <DrawerContent className="mx-auto flex flex-col items-center md:max-w-xl md:w-3/6 w-full">
-              <DrawerHeader className={`flex justify-between items-center w-full p-4 ${isDarkTheme ? "bg-black" : "bg-white"}`}>
-
+            <DrawerContent className="mx-auto flex flex-col items-center md:max-w-xl md:w-3/6 w-full sm:h-1/2 ">
+              <DrawerHeader
+                className={`flex justify-between items-center w-full p-4 ${
+                  isDarkTheme ? "bg-black" : "bg-white"
+                }`}
+              >
                 <DrawerTitle>Comments</DrawerTitle>
                 <DrawerClose>
                   <Button variant="outline">X</Button>
                 </DrawerClose>
-                
-
               </DrawerHeader>
+              <ScrollArea className="w-full h-1/2 p-4 flex flex-col gap-2 overflow-y-auto">
+                {comments.map((comment) => (
+                  <CommentCard key={comment.id} comment={comment} />
+                ))}
+              </ScrollArea>
               <DrawerFooter>
-                <div className="flex flex-col">
-
-                <form action="" >
-                <Input placeholder="Ecrivez un commentaire"/>
-            <Button type="submit" variant="ghost"><Send /></Button>
+                <form onSubmit={handleSubmit} className="flex flex-row gap-2">
+                  <Input
+                    placeholder="Ecrivez un commentaire"
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                  />
+                  <Button
+                    type="submit"
+                    variant="ghost"
+                    className="rounded-full p-1 transition-all ease-in-out delay-0 hover:text-green-500 hover:bg-green-400/25"
+                  >
+                    <Send />
+                  </Button>
                 </form>
-                </div>
-
               </DrawerFooter>
             </DrawerContent>
           </Drawer>

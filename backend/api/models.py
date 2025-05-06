@@ -16,6 +16,7 @@ class Token(models.Model):
 class User(AbstractUser):
     role = models.CharField(max_length=10, default="etudiant")
     profile_picture = models.ImageField(upload_to='profile_pictures/', null=True, blank=True)
+    bio = models.TextField(null=True, blank=True)
     
     username = models.CharField(max_length=50,unique=True)
     email = models.EmailField(unique=True)

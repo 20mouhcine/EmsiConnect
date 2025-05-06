@@ -11,9 +11,10 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     
+    
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'password', 'role', 'profile_picture']
+        fields = ['id', 'username', 'email', 'password', 'role','bio','profile_picture']
 
     def create(self, validated_data):
         user = User(
@@ -25,6 +26,28 @@ class UserSerializer(serializers.ModelSerializer):
         user.set_password(validated_data['password'])  
         user.save()
         return user
+        
+    def update(self, instance, validated_data):
+        """
+        Handle user profile updates, including optional password change
+        """
+        # Update basic fields
+        instance.username = validated_data.get('username', instance.username)
+        instance.email = validated_data.get('email', instance.email)
+        
+        
+        # Update profile fields
+        if 'bio' in validated_data:
+            instance.bio = validated_data.get('bio')
+        
+        # Handle file uploads
+        if 'profile_picture' in validated_data:
+            instance.profile_picture = validated_data.get('profile_picture')
+        
+
+        
+        instance.save()
+        return instance
     
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -38,6 +61,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
             'username': self.user.username,
             'role': self.user.role,
             'profile_picture': self.user.profile_picture.url if self.user.profile_picture else None,
+            'bio': self.user.bio,
         }
 
         return data
@@ -48,7 +72,8 @@ class TokenSerializer(serializers.ModelSerializer):
         model = Token
         fields = ['id', 'token', 'created_at', 'expires_at', 'user_id', 'is_used']
 
-class CommentaireSerializer(serializers.ModelSerializer):
+class CommentsSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True) 
     class Meta:
         model = Commentaire
         fields = ['user', 'content']
@@ -62,7 +87,7 @@ class LikesSerializer(serializers.ModelSerializer):
 class PostsSerializer(serializers.ModelSerializer):
     num_comments = serializers.SerializerMethodField()
     num_likes = serializers.SerializerMethodField()
-    user = UserSerializer(read_only=True) 
+    user = UserSerializer() 
 
     
     class Meta:

@@ -5,8 +5,8 @@ from django.core.mail import send_mail
 from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import User, Token, Posts, Likes
-from .serializers import UserSerializer, TokenSerializer,PostsSerializer, MyTokenObtainPairSerializer
+from .models import User, Token, Posts, Likes, Commentaire
+from .serializers import UserSerializer, TokenSerializer,PostsSerializer, MyTokenObtainPairSerializer,CommentsSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.conf import settings
 from django.shortcuts import get_object_or_404
@@ -14,7 +14,7 @@ from datetime import  timedelta
 import hashlib
 import uuid
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.utils import timezone
 
 SALT = "8b4f6b2cc1868d75ef79e5cfb8779c11b6a374bf0fce05b485581bf4e1e25b96c8c2855015de8449"
@@ -232,6 +232,45 @@ class UsersListAPIView(APIView):
         users = User.objects.all()
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
+    
+class UsersDetailAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]  # Add these parsers for file uploads
+
+    def get_object(self, pk):
+        return get_object_or_404(User, pk=pk)
+
+    def get(self, request, pk):
+        user = self.get_object(pk)
+        serializer = UserSerializer(user)
+        return Response(serializer.data)
+
+    def patch(self, request, pk):
+        user = self.get_object(pk)
+        
+        # Add permission check to ensure users can only modify their own profiles
+        if request.user.id != user.id and not request.user.is_staff:
+            return Response(
+                {"detail": "You don't have permission to update this profile."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        serializer = UserSerializer(user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+class UserUpdateAPIView(UsersDetailAPIView):
+    """
+    This view is identical to UsersDetailAPIView but provides a separate endpoint
+    for profile updates at /users/{pk}/update/
+    """
+    pass
+
+
+
 
 class PostsCreateAPIView(APIView):
     # Add permission class to require authentication
@@ -343,3 +382,75 @@ class LikeStatusAPIView(APIView):
             "user_has_liked": user_has_liked,
             "num_likes": post.num_likes()
         }, status=status.HTTP_200_OK)
+    
+
+class CommentListAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, pk):
+        """Get all comments for a specific post"""
+        post = get_object_or_404(Posts, pk=pk)
+        comments = post.comments.all()
+        serializer = CommentsSerializer(comments, many=True)
+        return Response(serializer.data)
+    
+    def post(self, request, pk):
+        post = get_object_or_404(Posts, pk=pk)
+        user = request.user
+        content = request.data.get("content")
+
+        if not content:
+            return Response({"message": "Content is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create the comment
+        comment = post.comments.create(user=user, content=content)
+        serializer = CommentsSerializer(comment)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    
+    def delete(self,request,pk):
+        post = get_object_or_404(Posts,pk=pk)
+        user = request.user
+
+        try:
+            comment = Commentaire.objects.get(post=post,user=user)
+            comment.delete()
+            return Response({"message":"Comment deleted successfully!"},status=status.HTTP_200_OK)
+        except Commentaire.DoesNotExist:
+            return Response({"message":"Comment not found!"},status=status.HTTP_404_NOT_FOUND)
+        
+
+class UserPostsView(APIView):
+    """
+    API view to retrieve all posts from a specific user
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, user_id):
+
+        try:
+            # Get the user by ID
+            user = get_object_or_404(User, id=user_id)
+            
+            # Get all posts by this user, ordered by creation date (newest first)
+            posts = Posts.objects.filter(user=user).order_by('-date_creation')
+            
+            # Serialize the posts
+            posts_serializer = PostsSerializer(posts, many=True, context={'request': request})
+            
+            # Serialize the user
+            user_serializer = UserSerializer(user)
+            
+            # Return both user data and posts
+            response_data = {
+                'user': user_serializer.data,
+                'posts': posts_serializer.data
+            }
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response(
+                {'error': f'Failed to fetch user posts: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

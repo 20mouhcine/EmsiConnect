@@ -1,5 +1,4 @@
-import { LoginForm } from "./components/login-form";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import {  Route, Routes } from "react-router-dom";
 import Login from "./screens/Login"
 import  Register  from "./screens/Register";
 import { ForgotPasswordForm } from "./screens/ForgotPasswordForm";
@@ -8,16 +7,12 @@ import ListeEtudiants from "./screens/ListeEtudiants";
 import { ThemeProvider } from "./components/theme-provider";
 import PrivateRoute from "@/components/PrivateRoute.jsx";
 import { Toaster } from "sonner";
-import userContext from "./user-context";
-import { useState } from "react";
-import { UserProvider } from "./user-context";
-import { User } from "lucide-react";
+
+import Profile  from "./screens/Profile";
 
 function App() {
-  const [user, setUser] = useState(null);
   return (
     <ThemeProvider>    
-      <UserProvider value={[user,setUser]}>
 
       <Toaster position="top-center" richColors />
       <Routes>
@@ -27,9 +22,9 @@ function App() {
         <Route element={<PrivateRoute />}>
           <Route path="/" element={<Home />} />
           <Route path="/utilisateurs" element={<ListeEtudiants />} />
+          <Route path="/profile" element={<Profile/>}/>
         </Route>
       </Routes>
-      </UserProvider>
     </ThemeProvider>
   );
 }

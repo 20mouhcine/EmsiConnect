@@ -12,12 +12,24 @@ import { Link, useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import axios from "axios";
-import { useContext } from "react";
-import userContext from "@/user-context";
 
 export function LoginForm({ className, ...props }) {
   const navigate = useNavigate();
-  const [user, setUser] = useContext(userContext);
+
+  function parseJwt(token) {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+  
+      return JSON.parse(jsonPayload);
+    } catch (e) {
+      return null;
+    }
+  }
+  
 
   // Form state
   const [formData, setFormData] = useState({
@@ -103,8 +115,11 @@ export function LoginForm({ className, ...props }) {
       const { access_token } = response.data;
       localStorage.setItem('access_token', access_token);
       localStorage.setItem("refresh_token", response.data.refresh);
-
-      setUser(response.data.user, JSON.stringify(response.data.user));
+      const userFromToken = parseJwt(localStorage.getItem('access_token'));
+      console.log("User from token:", userFromToken);
+      localStorage.setItem("user", JSON.stringify(userFromToken)); 
+      const user = JSON.parse(localStorage.getItem("user"));
+console.log("User after login:", user.user_id);
 
       setTimeout(() => {
         navigate("/");

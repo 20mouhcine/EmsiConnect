@@ -4,6 +4,7 @@ import { Search, MessageSquareMore, Bell, CircleUser } from "lucide-react";
 import ModeToggle from "./mode-toggle";
 import { Separator } from "./ui/separator";
 import {useTheme} from "@/components/theme-provider.jsx";
+import { Link } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -68,10 +69,11 @@ const NavBar = () => {
                   <DropdownMenuContent align="end" className="w-44">
                     <DropdownMenuLabel>Mon compte</DropdownMenuLabel>
                     <DropdownMenuSeparator />
+                      <Link to="/profile" className="">
                     <DropdownMenuItem className="cursor-pointer">
-
-                      Profil
+                      Profile
                     </DropdownMenuItem>
+                      </Link>
                     <DropdownMenuItem className="cursor-pointer">
 
                       Paramètres
