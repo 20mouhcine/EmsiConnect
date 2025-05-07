@@ -1,4 +1,6 @@
 import { formatDistanceToNow } from "date-fns";
+import fr from "date-fns/locale/fr";
+
 import {
   MessageCircle,
   Bookmark,
@@ -18,10 +20,12 @@ import {
   DrawerFooter,
   DrawerHeader,
   DrawerTitle,
+  DrawerDescription,
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { Input } from "./ui/input";
 import { Send } from "lucide-react";
+import { Link } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 import {
@@ -31,6 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import CommentCard from "./commentCard";
+import { toast } from "sonner";
 
 const PostCard = ({ post }) => {
   const { theme } = useTheme();
@@ -45,7 +50,10 @@ const PostCard = ({ post }) => {
   // Function to safely format the date
   const formatPostDate = (dateString) => {
     try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+      return formatDistanceToNow(new Date(dateString), {
+        addSuffix: true,
+        locale: fr,
+      });
     } catch (error) {
       console.error("Error formatting date:", error);
       return "recently";
@@ -67,6 +75,18 @@ const PostCard = ({ post }) => {
     checkLikeStatus();
   }, [post.id]);
 
+  const handleCommentUpdated = (updatedComment) => {
+    setComments((prevComments) =>
+      prevComments.map((comment) =>
+        comment.id === updatedComment.id ? updatedComment : comment
+      )
+    );
+  };
+
+  const handleCommentDeleted = (commentId) =>{
+    setComments(prevComments=>prevComments.filter(comment=>comment.id !== commentId));
+  };
+
   useEffect(() => {
     const fetchComments = async () => {
       try {
@@ -77,7 +97,20 @@ const PostCard = ({ post }) => {
       }
     };
     fetchComments();
-  }, []);
+  }, [post.id]);
+
+  const deletePost = async () => {
+    try {
+      const response = await api.delete(`/posts/${post.id}/delete/`);
+      toast.success("Post deleted successfully.");
+      // Optionally, you can redirect or update the UI to reflect the deletion
+      // For example, you can call a function to refresh the post list or redirect to another page
+      window.location.reload();
+    } catch (error) {
+      console.error("Error deleting post:", error);
+      toast.error("Failed to delete post. Please try again.");
+    }
+  };
 
   const handleLike = async () => {
     if (isLoading) return;
@@ -150,7 +183,12 @@ const PostCard = ({ post }) => {
             </Avatar>
             <div>
               <div className="font-medium text-sm sm:text-base">
-                {post.user?.username || "Unknown"}
+                <Link
+                  to={`/profile/${post.user?.id}`}
+                  className="hover:underline"
+                >
+                  {post.user?.username || "Unknown"}
+                </Link>
               </div>
               <div className="text-xs sm:text-sm text-muted-foreground">
                 {formatPostDate(post.date_creation)}
@@ -168,8 +206,29 @@ const PostCard = ({ post }) => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem>Save Post</DropdownMenuItem>
-              <DropdownMenuItem>Report</DropdownMenuItem>
+              {(() => {
+                const storedUser = JSON.parse(localStorage.getItem("user"));
+                const currentPath = window.location.pathname;
+                const isOwner =
+                  currentPath === "/profile/" ||
+                  currentPath === `/profile/${storedUser?.user_id}`;
+                return isOwner ? (
+                  <>
+                    <DropdownMenuItem>Modifier</DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-red-500"
+                      onClick={deletePost}
+                    >
+                      Supprimer
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <>
+                    <DropdownMenuItem>Save Post</DropdownMenuItem>
+                    <DropdownMenuItem>Report</DropdownMenuItem>
+                  </>
+                );
+              })()}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -224,15 +283,22 @@ const PostCard = ({ post }) => {
                   isDarkTheme ? "bg-black" : "bg-white"
                 }`}
               >
-                <DrawerTitle>Comments</DrawerTitle>
+                <DrawerTitle>Commentaires</DrawerTitle>
+                <DrawerDescription></DrawerDescription>
                 <DrawerClose>
                   <Button variant="outline">X</Button>
                 </DrawerClose>
               </DrawerHeader>
               <ScrollArea className="w-full h-1/2 p-4 flex flex-col gap-2 overflow-y-auto">
-                {comments.map((comment) => (
-                  <CommentCard key={comment.id} comment={comment} />
-                ))}
+                {comments.length > 0 ? (
+                  comments.map((comment) => (
+                    <CommentCard key={comment.id} comment={comment} onCommentUpdated={handleCommentUpdated} onCommentDeleted={handleCommentDeleted}/>
+                  ))
+                ) : (
+                  <div className="text-center text-sm text-muted-foreground">
+                    Aucun commentaire pour l'instant
+                  </div>
+                )}
               </ScrollArea>
               <DrawerFooter>
                 <form onSubmit={handleSubmit} className="flex flex-row gap-2">

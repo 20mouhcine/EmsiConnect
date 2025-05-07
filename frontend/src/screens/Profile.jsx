@@ -13,15 +13,18 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import ProfileEditForm from "@/components/ProfileEditForm"; // Import the new component
+import ProfileEditForm from "@/components/ProfileEditForm";
+import { useParams } from "react-router-dom";
 
 const Profile = () => {
   const { theme } = useTheme();
   const isDarkTheme = theme === "dark";
+  const { id } = useParams();
 
   const [user, setUser] = useState(null);
   const [posts, setPosts] = useState([]);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [isOwner, setIsOwner] = useState(false); // 🆕
 
   useEffect(() => {
     const fetchData = async () => {
@@ -32,45 +35,30 @@ const Profile = () => {
         return;
       }
 
-      setUser(storedUser);
-
       try {
-        // Récupération des publications
-        const postResponse = await api.get(
-          `/post/user/${storedUser.user_id}/`,
-          {
-            headers: {
-              Authorization: "Bearer " + localStorage.getItem("access_token"),
-            },
-          }
-        );
-        setPosts(postResponse.data.posts);
-      } catch (error) {
-        console.error(
-          "Erreur lors de la récupération des publications :",
-          error
-        );
-      }
+        const userId = id || storedUser.user_id;
+        setIsOwner(userId.toString() === storedUser.user_id.toString());
 
-      try {
-        // Récupération des infos utilisateur si nécessaire
-        const response = await api.get(`/users/${storedUser.user_id}/`, {
+        const postResponse = await api.get(`/post/user/${userId}/`, {
           headers: {
             Authorization: "Bearer " + localStorage.getItem("access_token"),
           },
         });
-        setUser(response.data);
+        setPosts(postResponse.data.posts);
+
+        const userResponse = await api.get(`/users/${userId}/`, {
+          headers: {
+            Authorization: "Bearer " + localStorage.getItem("access_token"),
+          },
+        });
+        setUser(userResponse.data);
       } catch (error) {
-        console.error(
-          "Erreur lors de la récupération des infos utilisateur :",
-          error
-        );
+        console.error("Erreur lors de la récupération des données :", error);
       }
     };
 
     fetchData();
-  }, []);
-  console.log("User data:", user); // Debugging line
+  }, [id]);
 
   if (!user) {
     return <div className="text-center mt-20">Chargement du profil...</div>;
@@ -87,7 +75,7 @@ const Profile = () => {
         <SideBar />
         <div className="flex-1 flex justify-center items-start p-3">
           <div className="w-full max-w-2xl">
-            {/* Image de couverture */}
+            {/* Cover Image */}
             <div
               className={`relative w-full h-48 rounded-t-lg ${
                 isDarkTheme ? "bg-gray-800" : "bg-gray-200"
@@ -100,26 +88,31 @@ const Profile = () => {
                   className="w-full h-full object-cover rounded-t-lg"
                 />
               ) : (
-                <div className="absolute bottom-4 right-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-1"
-                  >
-                    <ImagePlus size={16} />
-                    <span className="hidden sm:inline">
-                      Ajouter une couverture
-                    </span>
-                  </Button>
-                </div>
+                isOwner && (
+                  <div className="absolute bottom-4 right-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-1"
+                    >
+                      <ImagePlus size={16} />
+                      <span className="hidden sm:inline">
+                        Ajouter une couverture
+                      </span>
+                    </Button>
+                  </div>
+                )
               )}
 
               {/* Avatar */}
               <div className="absolute -bottom-16 left-6">
                 <Avatar className="h-32 w-32 border-4 border-white shadow-md">
-                  <AvatarImage
-                    src={`http://127.0.0.1:8000${user.profile_picture}`}
-                  />
+                  {user.profile_picture ? (
+                    <AvatarImage
+                      src={`http://127.0.0.1:8000${user.profile_picture}`}
+                      alt="Avatar"
+                    />
+                  ) : null}
                   <AvatarFallback
                     className={`text-3xl ${
                       isDarkTheme ? "bg-gray-700" : "bg-gray-300"
@@ -131,7 +124,7 @@ const Profile = () => {
               </div>
             </div>
 
-            {/* Infos profil */}
+            {/* Profile Info */}
             <div
               className={`mt-16 p-6 ${
                 isDarkTheme ? "bg-gray-900" : "bg-gray-50"
@@ -147,33 +140,44 @@ const Profile = () => {
                   >
                     @{user.username}
                   </p>
-                  {user.bio && (
-                    <p className="mt-2 text-sm">{user.bio}</p>
-                  )}
+                  {user.bio && <p className="mt-2 text-sm">{user.bio}</p>}
                 </div>
-                
-                <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="flex items-center gap-1">
-                      <PenSquare size={16} />
-                      Modifier le profile
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80 p-4">
-                    <ProfileEditForm onComplete={() => setIsPopoverOpen(false)} />
-                  </PopoverContent>
-                </Popover>
+
+                {/* Modifier le profil visible seulement si propriétaire */}
+                {isOwner && (
+                  <Popover
+                    open={isPopoverOpen}
+                    onOpenChange={setIsPopoverOpen}
+                  >
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-1"
+                      >
+                        <PenSquare size={16} />
+                        Modifier le profile
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-4">
+                      <ProfileEditForm
+                        onComplete={() => setIsPopoverOpen(false)}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                )}
               </div>
 
-              {/* Onglets */}
+              {/* Tabs */}
               <Tabs defaultValue="posts">
                 <TabsList className="w-full">
                   <TabsTrigger value="posts" className="flex-1">
-                    Publication
+                    Publications
                   </TabsTrigger>
-                  <TabsTrigger value="media" className="flex-1">
-                    Enregistrement
-                  </TabsTrigger>
+                  {isOwner && (
+                    <TabsTrigger value="media" className="flex-1">
+                      Enregistrements
+                    </TabsTrigger>
+                  )}
                 </TabsList>
 
                 <TabsContent value="posts" className="mt-4">
@@ -195,14 +199,20 @@ const Profile = () => {
                     </div>
                   )}
                 </TabsContent>
-                
-                <TabsContent value="media" className="mt-4">
-                  <div className="text-center py-10">
-                    <p className={isDarkTheme ? "text-gray-400" : "text-gray-600"}>
-                      Aucun enregistrement pour le moment
-                    </p>
-                  </div>
-                </TabsContent>
+
+                {isOwner && (
+                  <TabsContent value="media" className="mt-4">
+                    <div className="text-center py-10">
+                      <p
+                        className={
+                          isDarkTheme ? "text-gray-400" : "text-gray-600"
+                        }
+                      >
+                        Aucun enregistrement pour le moment
+                      </p>
+                    </div>
+                  </TabsContent>
+                )}
               </Tabs>
             </div>
           </div>

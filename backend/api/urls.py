@@ -16,10 +16,12 @@ urlpatterns = [
     path('users/<int:pk>/update/', views.UserUpdateAPIView.as_view(), name='user_update'),
     path('posts/', views.PostsListAPIView.as_view(), name='posts_list'),
     path('posts/create/', views.PostsCreateAPIView.as_view(), name='posts_create'),
+    path('posts/<int:pk>/delete/', views.PostsDetailAPIView.as_view(), name='posts_delete'),
     path('posts/<int:pk>/', views.PostsDetailAPIView.as_view(), name='post_detail'),
     path('posts/<int:pk>/like/', views.LikePostAPIView.as_view(), name='like_post'), 
     path('posts/<int:pk>/like-status/', views.LikeStatusAPIView.as_view(), name='post_like_status'),
     path('posts/<int:pk>/comments/', views.CommentListAPIView.as_view(), name='comments_list'),
+    path('posts/<int:pk>/comments/<int:comment_id>/', views.CommentListAPIView.as_view(), name='comment-detail'),
     path('posts/<int:pk>/comments/create/', views.CommentListAPIView.as_view(), name='comments_create'),
     path('post/user/<int:user_id>/', views.UserPostsView.as_view(), name='user-posts'),
 

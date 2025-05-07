@@ -22,7 +22,7 @@ function App() {
         <Route element={<PrivateRoute />}>
           <Route path="/" element={<Home />} />
           <Route path="/utilisateurs" element={<ListeEtudiants />} />
-          <Route path="/profile" element={<Profile/>}/>
+          <Route path="/profile/:id" element={<Profile/>}/>
         </Route>
       </Routes>
     </ThemeProvider>

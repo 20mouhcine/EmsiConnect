@@ -73,10 +73,10 @@ class TokenSerializer(serializers.ModelSerializer):
         fields = ['id', 'token', 'created_at', 'expires_at', 'user_id', 'is_used']
 
 class CommentsSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True) 
+    user = UserSerializer(read_only=True)
     class Meta:
         model = Commentaire
-        fields = ['user', 'content']
+        fields = ['id','user', 'content','post']
 
 class LikesSerializer(serializers.ModelSerializer):
     class Meta:
@@ -87,7 +87,9 @@ class LikesSerializer(serializers.ModelSerializer):
 class PostsSerializer(serializers.ModelSerializer):
     num_comments = serializers.SerializerMethodField()
     num_likes = serializers.SerializerMethodField()
-    user = UserSerializer() 
+    media = serializers.FileField(required=False, allow_null=True)
+
+    user = UserSerializer(read_only=True) 
 
     
     class Meta:

@@ -13,12 +13,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import LogoImg from "../../public/logo.png";
 
 const NavBar = () => {
   const [showSearch, setShowSearch] = useState(false);
 
   const { theme } = useTheme();
   const isDarkTheme = theme === 'dark';
+  const storedUser = JSON.parse(localStorage.getItem("user"));
+
 
   const handleSearchToggle = () => {
     setShowSearch(!showSearch);
@@ -31,7 +34,8 @@ const NavBar = () => {
         <nav className="flex justify-between items-center max-w-7xl mx-auto py-4 px-6">
           {/* Logo */}
           <div className="flex items-center">
-            <h1 className="text-green-500 text-2xl font-bold">Emsi</h1>
+            <img src={LogoImg} alt="" className="w-10 h-10"/>
+            <h1 className="text-green-700 text-2xl font-bold">Emsi</h1>
             <span className="text-2xl font-bold">Connect</span>
           </div>
 
@@ -69,7 +73,7 @@ const NavBar = () => {
                   <DropdownMenuContent align="end" className="w-44">
                     <DropdownMenuLabel>Mon compte</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                      <Link to="/profile" className="">
+                      <Link to={`/profile/${storedUser.user_id}`} >
                     <DropdownMenuItem className="cursor-pointer">
                       Profile
                     </DropdownMenuItem>

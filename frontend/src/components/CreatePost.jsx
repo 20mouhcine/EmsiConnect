@@ -19,6 +19,7 @@ function CreatePost({ onPostCreated }) {
     const fileInputRef = useRef(null);
     const [selectedFile, setSelectedFile] = useState(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const user = JSON.parse(localStorage.getItem("user"));
 
     const handleFileChange = (e) => {
         if (e.target.files[0]) {
@@ -67,6 +68,7 @@ function CreatePost({ onPostCreated }) {
             setIsSubmitting(false);
         }
     };
+    const avatarFallback = user?.username?.substring(0, 2).toUpperCase();
 
     return (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -75,8 +77,11 @@ function CreatePost({ onPostCreated }) {
                     <Button variant="outline" className="w-full h-auto flex justify-between cursor-text">
                         <div className="flex items-center justify-between">
                             <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
-                                <AvatarImage src="https://i.pravatar.cc/150?img=3" />
-                                <AvatarFallback>UT</AvatarFallback>
+                                <AvatarImage src = {user?.profile_picture?.startsWith("http")
+                    ? user.profile_picture
+                    : `http://127.0.0.1:8000${user?.profile_picture}`
+                } />
+                                <AvatarFallback>{avatarFallback}</AvatarFallback>
                             </Avatar>
                             <p className="mx-2 text-xs sm:text-sm text-muted-foreground">Dis-nous ce que tu penses</p>
                         </div>

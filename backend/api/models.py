@@ -32,7 +32,7 @@ class Posts(models.Model):
     date_creation = models.DateTimeField(default=timezone.now)
     date_modification = models.DateTimeField(default=timezone.now)
     contenu_texte = models.CharField(max_length=200,default="empty")
-    media = models.ImageField(null=True,upload_to='images/')
+    media = models.ImageField(null=True,upload_to='images/', blank=True)
 
     def __str__(self):
         return self.name

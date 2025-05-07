@@ -235,7 +235,7 @@ class UsersListAPIView(APIView):
     
 class UsersDetailAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser, JSONParser]  # Add these parsers for file uploads
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_object(self, pk):
         return get_object_or_404(User, pk=pk)
@@ -407,13 +407,34 @@ class CommentListAPIView(APIView):
         serializer = CommentsSerializer(comment)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
+    def put(self, request, pk, comment_id):
+        """Update a comment"""
+        post = get_object_or_404(Posts, pk=pk)
+        user = request.user
+        content = request.data.get("content")
+        
+        if not content:
+            return Response({"message": "Content is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            comment = Commentaire.objects.get(post=post, user=user, id=comment_id)
+            comment.content = content
+            comment.save()
+            serializer = CommentsSerializer(comment)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Commentaire.DoesNotExist:
+            return Response(
+                {"message": "Comment not found or you don't have permission to update it."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
     
-    def delete(self,request,pk):
+    def delete(self,request,pk,comment_id):
         post = get_object_or_404(Posts,pk=pk)
         user = request.user
+        commentaire = get_object_or_404(Commentaire,pk=comment_id,post=post)
 
         try:
-            comment = Commentaire.objects.get(post=post,user=user)
+            comment = Commentaire.objects.get(post=post,user=user,id=commentaire.id)
             comment.delete()
             return Response({"message":"Comment deleted successfully!"},status=status.HTTP_200_OK)
         except Commentaire.DoesNotExist:
