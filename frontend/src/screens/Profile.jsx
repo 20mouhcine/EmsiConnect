@@ -23,15 +23,19 @@ const Profile = () => {
 
   const [user, setUser] = useState(null);
   const [posts, setPosts] = useState([]);
+  const [savedPosts, setSavedPosts] = useState([]);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-  const [isOwner, setIsOwner] = useState(false); // 🆕
+  const [isOwner, setIsOwner] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
       const storedUser = JSON.parse(localStorage.getItem("user"));
 
       if (!storedUser || !storedUser.user_id) {
         console.warn("Utilisateur non connecté ou incomplet dans localStorage");
+        setIsLoading(false);
         return;
       }
 
@@ -39,6 +43,7 @@ const Profile = () => {
         const userId = id || storedUser.user_id;
         setIsOwner(userId.toString() === storedUser.user_id.toString());
 
+        // Fetch user posts
         const postResponse = await api.get(`/post/user/${userId}/`, {
           headers: {
             Authorization: "Bearer " + localStorage.getItem("access_token"),
@@ -46,6 +51,17 @@ const Profile = () => {
         });
         setPosts(postResponse.data.posts);
 
+        // Fetch saved posts only for the owner
+        if (userId.toString() === storedUser.user_id.toString()) {
+          const savedPostsResponse = await api.get(`/saved-posts/`, {
+            headers: {
+              Authorization: "Bearer " + localStorage.getItem("access_token"),
+            },
+          });
+          setSavedPosts(savedPostsResponse.data);
+        }
+
+        // Fetch user details
         const userResponse = await api.get(`/users/${userId}/`, {
           headers: {
             Authorization: "Bearer " + localStorage.getItem("access_token"),
@@ -54,14 +70,20 @@ const Profile = () => {
         setUser(userResponse.data);
       } catch (error) {
         console.error("Erreur lors de la récupération des données :", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchData();
   }, [id]);
 
-  if (!user) {
+  if (isLoading) {
     return <div className="text-center mt-20">Chargement du profil...</div>;
+  }
+
+  if (!user) {
+    return <div className="text-center mt-20">Utilisateur non trouvé</div>;
   }
 
   return (
@@ -202,15 +224,27 @@ const Profile = () => {
 
                 {isOwner && (
                   <TabsContent value="media" className="mt-4">
-                    <div className="text-center py-10">
-                      <p
-                        className={
-                          isDarkTheme ? "text-gray-400" : "text-gray-600"
-                        }
-                      >
-                        Aucun enregistrement pour le moment
-                      </p>
-                    </div>
+                    {savedPosts.length > 0 ? (
+                      <div className="space-y-6">
+                        {savedPosts.map((savedPost) => (
+                          <PostCard 
+                            key={savedPost.id} 
+                            post={savedPost.post} 
+                            isSavedPost={true} 
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-10">
+                        <p
+                          className={
+                            isDarkTheme ? "text-gray-400" : "text-gray-600"
+                          }
+                        >
+                          Aucun enregistrement pour le moment
+                        </p>
+                      </div>
+                    )}
                   </TabsContent>
                 )}
               </Tabs>

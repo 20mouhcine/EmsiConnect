@@ -41,8 +41,10 @@ const PostCard = ({ post }) => {
   const { theme } = useTheme();
   const isDarkTheme = theme === "dark";
   const [liked, setLiked] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [likeCount, setLikeCount] = useState(post.num_likes || 0);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaveLoading, setIsSaveLoading] = useState(false);
   const [commentCount, setCommentCount] = useState(post.num_comments || 0);
   const [content, setContent] = useState("");
   const [comments, setComments] = useState([]);
@@ -72,7 +74,18 @@ const PostCard = ({ post }) => {
       }
     };
 
+    // Check if the current user has saved this post
+    const checkSaveStatus = async () => {
+      try {
+        const response = await api.get(`/posts/${post.id}/save-status/`);
+        setSaved(response.data.user_has_saved);
+      } catch (error) {
+        console.error("Error checking save status:", error);
+      }
+    };
+
     checkLikeStatus();
+    checkSaveStatus();
   }, [post.id]);
 
   const handleCommentUpdated = (updatedComment) => {
@@ -83,8 +96,10 @@ const PostCard = ({ post }) => {
     );
   };
 
-  const handleCommentDeleted = (commentId) =>{
-    setComments(prevComments=>prevComments.filter(comment=>comment.id !== commentId));
+  const handleCommentDeleted = (commentId) => {
+    setComments((prevComments) =>
+      prevComments.filter((comment) => comment.id !== commentId)
+    );
   };
 
   useEffect(() => {
@@ -101,10 +116,9 @@ const PostCard = ({ post }) => {
 
   const deletePost = async () => {
     try {
-      const response = await api.delete(`/posts/${post.id}/delete/`);
+      await api.delete(`/posts/${post.id}/delete/`);
       toast.success("Post deleted successfully.");
       // Optionally, you can redirect or update the UI to reflect the deletion
-      // For example, you can call a function to refresh the post list or redirect to another page
       window.location.reload();
     } catch (error) {
       console.error("Error deleting post:", error);
@@ -139,6 +153,33 @@ const PostCard = ({ post }) => {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (isSaveLoading) return;
+
+    setIsSaveLoading(true);
+    try {
+      if (saved) {
+        const response = await api.delete(`/posts/${post.id}/save/`);
+        setSaved(false);
+        toast.success("Post removed from saved items");
+      } else {
+        const response = await api.post(`/posts/${post.id}/save/`);
+        setSaved(true);
+        toast.success("Publication enregistrée avec succes ");
+      }
+    } catch (error) {
+      console.error("Error toggling save:", error);
+
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error("Failed to update saved status. Please try again.");
+      }
+    } finally {
+      setIsSaveLoading(false);
     }
   };
 
@@ -224,7 +265,9 @@ const PostCard = ({ post }) => {
                   </>
                 ) : (
                   <>
-                    <DropdownMenuItem>Save Post</DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleSave}>
+                      {saved ? "Unsave Post" : "Save Post"}
+                    </DropdownMenuItem>
                     <DropdownMenuItem>Report</DropdownMenuItem>
                   </>
                 );
@@ -292,7 +335,12 @@ const PostCard = ({ post }) => {
               <ScrollArea className="w-full h-1/2 p-4 flex flex-col gap-2 overflow-y-auto">
                 {comments.length > 0 ? (
                   comments.map((comment) => (
-                    <CommentCard key={comment.id} comment={comment} onCommentUpdated={handleCommentUpdated} onCommentDeleted={handleCommentDeleted}/>
+                    <CommentCard
+                      key={comment.id}
+                      comment={comment}
+                      onCommentUpdated={handleCommentUpdated}
+                      onCommentDeleted={handleCommentDeleted}
+                    />
                   ))
                 ) : (
                   <div className="text-center text-sm text-muted-foreground">
@@ -319,10 +367,18 @@ const PostCard = ({ post }) => {
             </DrawerContent>
           </Drawer>
 
-          <Button variant="ghost" size="sm" className="h-8 px-2 sm:h-9 sm:px-3">
-            <Bookmark className="h-4 w-4 mr-1 sm:mr-2" />
-            <span className="hidden xs:inline">Save</span>
-            <span className="xs:hidden">Save</span>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className={`h-8 px-2 sm:h-9 sm:px-3 ${saved ? "text-green-500" : ""}`}
+            onClick={handleSave}
+            disabled={isSaveLoading}
+          >
+            <Bookmark 
+              className={`h-4 w-4 mr-1 sm:mr-2 ${saved ? "fill-current" : ""}`} 
+            />
+            <span className="hidden xs:inline">{saved ? "Saved" : "Save"}</span>
+            <span className="xs:hidden">{saved ? "Saved" : "Save"}</span>
           </Button>
         </div>
       </div>

@@ -24,7 +24,7 @@ urlpatterns = [
     path('posts/<int:pk>/comments/<int:comment_id>/', views.CommentListAPIView.as_view(), name='comment-detail'),
     path('posts/<int:pk>/comments/create/', views.CommentListAPIView.as_view(), name='comments_create'),
     path('post/user/<int:user_id>/', views.UserPostsView.as_view(), name='user-posts'),
-
-    
-    # Add this new URL pattern for the like feature
+    path('posts/<int:pk>/save/', views.SavePostAPIView.as_view(), name='save-post'),
+    path('saved-posts/', views.SavedPostsListAPIView.as_view(), name='saved-posts-list'),
+    path('posts/<int:pk>/save-status/', views.SaveStatusAPIView.as_view(), name='save-status'),
 ]

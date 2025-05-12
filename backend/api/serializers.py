@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Token,Posts, Commentaire, Likes
+from .models import User, Token,Posts, Commentaire, Likes,SavedPost
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -88,13 +88,15 @@ class PostsSerializer(serializers.ModelSerializer):
     num_comments = serializers.SerializerMethodField()
     num_likes = serializers.SerializerMethodField()
     media = serializers.FileField(required=False, allow_null=True)
+    save_count = serializers.SerializerMethodField()
+
 
     user = UserSerializer(read_only=True) 
 
     
     class Meta:
         model = Posts
-        fields = ['id', 'user', 'date_creation', 'date_modification', 'contenu_texte', 'media', 'num_comments', 'num_likes']
+        fields = ['id', 'user', 'date_creation', 'date_modification', 'contenu_texte', 'media', 'num_comments', 'num_likes','save_count']
         read_only_fields = ['id', 'date_creation', 'date_modification', 'user']
 
     def get_num_comments(self, obj):
@@ -102,3 +104,16 @@ class PostsSerializer(serializers.ModelSerializer):
 
     def get_num_likes(self, obj):
         return obj.likes.count()
+    
+    def get_save_count(self, obj):
+        return obj.saved_by.count()
+    
+class SavedPostSerializer(serializers.ModelSerializer):
+    post = PostsSerializer(read_only=True)
+    
+    class Meta:
+        model = SavedPost
+        fields = ['id', 'user', 'post', 'date_saved']
+        read_only_fields = ['user', 'date_saved']
+
+    

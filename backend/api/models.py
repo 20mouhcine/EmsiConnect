@@ -42,6 +42,8 @@ class Posts(models.Model):
 
     def num_likes(self):
         return self.likes.count()
+    def num_saves(self):
+        return self.save.count()
 
 class Commentaire(models.Model):
     post = models.ForeignKey(Posts, on_delete=models.CASCADE, related_name='comments', null=True)
@@ -66,3 +68,16 @@ class Likes(models.Model):
 
     def __str__(self):
         return f"Like by {self.user.username} on {self.post.id}"
+    
+
+class SavedPost(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='saved_posts')
+    post = models.ForeignKey(Posts, on_delete=models.CASCADE, related_name='saved_by')
+    date_saved = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'post')  # Each post can be saved only once by the same user
+        ordering = ['-date_saved']  # Most recently saved first
+
+    def __str__(self):
+        return f"{self.user.email} saved post {self.post.id}"

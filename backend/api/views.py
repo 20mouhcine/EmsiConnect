@@ -5,8 +5,8 @@ from django.core.mail import send_mail
 from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import User, Token, Posts, Likes, Commentaire
-from .serializers import UserSerializer, TokenSerializer,PostsSerializer, MyTokenObtainPairSerializer,CommentsSerializer
+from .models import User, Token, Posts, Likes, Commentaire,SavedPost
+from .serializers import UserSerializer, TokenSerializer,PostsSerializer, MyTokenObtainPairSerializer,CommentsSerializer,SavedPostSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.conf import settings
 from django.shortcuts import get_object_or_404
@@ -475,3 +475,65 @@ class UserPostsView(APIView):
                 {'error': f'Failed to fetch user posts: {str(e)}'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        
+
+class SavePostAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def post(self, request, pk):
+        """Save a post for the current user"""
+        post = get_object_or_404(Posts, pk=pk)
+        user = request.user
+        
+        # Check if the user has already saved this post
+        if SavedPost.objects.filter(post=post, user=user).exists():
+            return Response({"message": "You have already saved this post"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create the saved post record
+        SavedPost.objects.create(post=post, user=user)
+        
+        return Response({
+            "message": "Post saved successfully!",
+        }, status=status.HTTP_201_CREATED)
+    
+    def delete(self, request, pk):
+        """Unsave a post for the current user"""
+        post = get_object_or_404(Posts, pk=pk)
+        user = request.user
+        
+        try:
+            saved_post = SavedPost.objects.get(post=post, user=user)
+            saved_post.delete()
+            return Response({
+                "message": "Post unsaved successfully!"
+            }, status=status.HTTP_200_OK)
+        except SavedPost.DoesNotExist:
+            return Response({"message": "You haven't saved this post"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SavedPostsListAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        """Get all posts saved by the current user"""
+        user = request.user
+        saved_posts = SavedPost.objects.filter(user=user)
+
+        serializer = SavedPostSerializer(saved_posts, many=True)
+        return Response(serializer.data)
+
+
+
+class SaveStatusAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, pk):
+        """Check if the current user has saved a specific post"""
+        post = get_object_or_404(Posts, pk=pk)
+        user = request.user
+        
+        user_has_saved = SavedPost.objects.filter(post=post, user=user).exists()
+        
+        return Response({
+            "user_has_saved": user_has_saved
+        }, status=status.HTTP_200_OK)

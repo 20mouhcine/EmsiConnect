@@ -103,7 +103,6 @@ function CreatePost({ onPostCreated }) {
                                 onChange={(e) => setContent(e.target.value)}
                                 className="col-span-3 flex min-h-[250px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
                                 placeholder="Partagez vos pensées ici..."
-                                required
                             />
                         </div>
                     </div>
