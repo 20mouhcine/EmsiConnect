@@ -33,11 +33,13 @@ const NavBar = () => {
       <header className={`fixed ${isDarkTheme ? 'bg-black' : 'bg-white'} top-0 left-0 right-0 bg-background z-10 mb-5`}>
         <nav className="flex justify-between items-center max-w-7xl mx-auto py-4 px-6">
           {/* Logo */}
+          <Link to="/">
           <div className="flex items-center">
             <img src={LogoImg} alt="" className="w-10 h-10"/>
             <h1 className="text-green-700 text-2xl font-bold">Emsi</h1>
             <span className="text-2xl font-bold">Connect</span>
           </div>
+          </Link>
 
           {/* Search Section */}
           <div className="flex items-center relative">
