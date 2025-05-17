@@ -32,7 +32,7 @@ urlpatterns = [
     path('ressources/<int:pk>/', views.RessourceAPIView.as_view(), name='ressources-delete'),
     path('posts/search/', views.search_posts, name='search_posts'),
     path('users/search/', views.search_users, name='search_users'),
-     path('groups/', views.GroupAPIView.as_view(), name='group-list-create'),
-     path('groups/search/', views.GroupAPIView.as_view(), name='group-search'),
+    path('groups/', views.GroupAPIView.as_view(), name='group-list-create'),
+    path('groups/search/', views.GroupAPIView.as_view(), name='group-search'),
     path('groups/<int:pk>/', views.GroupAPIView.as_view(), name='group-detail'),
 ]
