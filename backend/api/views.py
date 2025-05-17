@@ -5,17 +5,22 @@ from django.core.mail import send_mail
 from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import User, Token, Posts, Likes, Commentaire,SavedPost
-from .serializers import UserSerializer, TokenSerializer,PostsSerializer, MyTokenObtainPairSerializer,CommentsSerializer,SavedPostSerializer
+from .models import User, Token, Posts, Likes, Commentaire,SavedPost,Ressources,Groupe,VerificationToken
+from .serializers import UserSerializer, TokenSerializer,PostsSerializer, MyTokenObtainPairSerializer,CommentsSerializer,SavedPostSerializer,RessourceSerializer,GroupeSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.conf import settings
 from django.shortcuts import get_object_or_404
+from django.http import Http404
 from datetime import  timedelta
 import hashlib
+from django.db.models import Q
 import uuid
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.utils import timezone
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+import random
 
 SALT = "8b4f6b2cc1868d75ef79e5cfb8779c11b6a374bf0fce05b485581bf4e1e25b96c8c2855015de8449"
 URL = "http://localhost:5173"
@@ -48,7 +53,6 @@ class ResetPasswordView(APIView):
 
         token_obj = Token.objects.filter(user_id=user_id, token=token).order_by('-created_at').first()
         
-        # First check if token exists
         if token_obj is None:
             return Response(
                 {
@@ -57,7 +61,6 @@ class ResetPasswordView(APIView):
                 },
                 status=status.HTTP_200_OK,
             )
-        # Then check if token is already used
         elif token_obj.is_used:
             return Response(
                 {
@@ -66,7 +69,6 @@ class ResetPasswordView(APIView):
                 },
                 status=status.HTTP_200_OK,
             )
-        # Then check expiration
         elif token_obj.expires_at < timezone.now():
             return Response(
                 {
@@ -75,7 +77,6 @@ class ResetPasswordView(APIView):
                 },
                 status=status.HTTP_200_OK,
             )
-        # If all checks pass, proceed with password reset
         else:
             token_obj.is_used = True
             hashed_password = make_password(password, salt=SALT)
@@ -91,46 +92,127 @@ class ResetPasswordView(APIView):
                 )
 
 
-class ForgotPasswordView(APIView):
+# class ForgotPasswordView(APIView):
+#     def post(self, request):
+#         email = request.data["email"]
+#         user = User.objects.get(email=email)
+#         created_at = timezone.now()
+#         expires_at = created_at + timedelta(hours=1)
+#         salt = uuid.uuid4().hex
+#         token = hashlib.sha512((str(user.id)+user.password + created_at.isoformat() + salt).encode('utf-8')).hexdigest()
+#         token_obj = {
+#             "token":token,
+#             "created_at": created_at,
+#             "expires_at": expires_at,
+#             "user_id": user.id,                    
+#         }
+#         serializer = TokenSerializer(data=token_obj)
+#         if serializer.is_valid():
+#             serializer.save()
+#             subject = "Forgort Password Link"
+#             content = mail_template("We have received a request to reset your password. Please reset your password using the link below.",
+#                 f"{URL}/resetPassword?id={user.id}&token={token}",
+#                 "Reset Password",)
+#             send_mail(subject,message=content, from_email=settings.EMAIL_HOST_USER, recipient_list=[email], html_message=content)
+#             return Response(
+#                 {
+#                     "success": True,
+#                     "message": "A password reset link has been sent to your email.",
+#                 },
+#                 status=status.HTTP_200_OK,
+#             )
+#         else:
+#             error_msg = ""
+#             for key in serializer.errors:
+#                 error_msg += f"{key}: {serializer.errors[key][0]}"
+#             return Response(
+#                 {
+#                     "success": False,
+#                     "message": error_msg,
+#                 },
+#                 status=status.HTTP_200_OK,
+#             )
+        
+class VerifyEmailView(APIView):
     def post(self, request):
-        email = request.data["email"]
-        user = User.objects.get(email=email)
-        created_at = timezone.now()
-        expires_at = created_at + timedelta(hours=1)
-        salt = uuid.uuid4().hex
-        token = hashlib.sha512((str(user.id)+user.password + created_at.isoformat() + salt).encode('utf-8')).hexdigest()
-        token_obj = {
-            "token":token,
-            "created_at": created_at,
-            "expires_at": expires_at,
-            "user_id": user.id,                    
-        }
-        serializer = TokenSerializer(data=token_obj)
-        if serializer.is_valid():
-            serializer.save()
-            subject = "Forgort Password Link"
-            content = mail_template("We have received a request to reset your password. Please reset your password using the link below.",
-                f"{URL}/resetPassword?id={user.id}&token={token}",
-                "Reset Password",)
-            send_mail(subject,message=content, from_email=settings.EMAIL_HOST_USER, recipient_list=[email], html_message=content)
-            return Response(
-                {
-                    "success": True,
-                    "message": "A password reset link has been sent to your email.",
-                },
-                status=status.HTTP_200_OK,
+        try:
+            email = request.data["email"]
+            user = User.objects.get(email=email)
+            
+            created_at = timezone.now()
+            expires_at = created_at + timedelta(hours=1)
+            salt = uuid.uuid4().hex
+            token = hashlib.sha512((str(user.id) + user.password + created_at.isoformat() + salt).encode('utf-8')).hexdigest()
+            
+            otp = str(random.randint(100000, 999999))  
+            
+            VerificationToken.objects.create(
+                user=user,
+                token=token,
+                otp=otp,
+                created_at=created_at,
+                expires_at=expires_at
             )
-        else:
-            error_msg = ""
-            for key in serializer.errors:
-                error_msg += f"{key}: {serializer.errors[key][0]}"
-            return Response(
-                {
-                    "success": False,
-                    "message": error_msg,
-                },
-                status=status.HTTP_200_OK,
+            
+            subject = "Email verification"
+            message = f"Hello {user.username},\n\nPlease use the following One Time Password to verify your email: {otp}"
+            html_message = f"""
+            <html>
+                <body>
+                    <h2>Email Verification</h2>
+                    <p>Hello {user.username},</p>
+                    <p>Please use the following One Time Password to verify your email:</p>
+                    <h1 style="color: #4CAF50;">{otp}</h1>
+                    <p>This OTP will expire in 1 hour.</p>
+                </body>
+            </html>
+            """
+            
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=[email],
+                html_message=html_message
             )
+            
+            return Response({"message": "Verification email sent successfully"}, status=200)
+            
+        except User.DoesNotExist:
+            return Response({"error": "User with this email does not exist"}, status=404)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+        
+
+class VerifyOTPView(APIView):
+    def post(self, request):
+        try:
+            email = request.data["email"]
+            otp = request.data["otp"]
+            
+            user = User.objects.get(email=email)
+            token = VerificationToken.objects.filter(
+                user=user,
+                otp=otp,
+                is_used=False,
+                expires_at__gt=timezone.now()
+            ).order_by('-created_at').first()
+            
+            if not token:
+                return Response({"error": "Invalid or expired OTP"}, status=400)
+            
+            token.is_used = True
+            token.save()
+            
+            user.is_email_verified = True
+            user.save()
+            
+            return Response({"message": "Email verified successfully"}, status=200)
+            
+        except User.DoesNotExist:
+            return Response({"error": "User with this email does not exist"}, status=404)
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
         
 
 
@@ -163,9 +245,7 @@ class LoginView(APIView):
         try:
             user = User.objects.get(email=email)
             
-            # If using Django's built-in password hashing
             if check_password(password, user.password):
-                # Create a refresh token and an access token
                 refresh = RefreshToken.for_user(user)
                 access_token = str(refresh.access_token)
 
@@ -173,7 +253,7 @@ class LoginView(APIView):
                     {
                         "success": True,
                         "message": "Login successful!",
-                        "access_token": access_token,  # Send the access token in the response
+                        "access_token": access_token,
                     },
                     status=status.HTTP_200_OK,
                 )
@@ -186,7 +266,6 @@ class LoginView(APIView):
                     status=status.HTTP_401_UNAUTHORIZED,
                 )
         except User.DoesNotExist:
-            # You might want to use the same error message to not reveal if the email exists
             return Response(
                 {
                     "success": False,
@@ -210,7 +289,7 @@ class checkUserView(APIView):
                 {
                     "success": True,
                     "message": "User exists",
-                    "exists": True  # Add this for frontend clarity
+                    "exists": True
                 },
                 status=status.HTTP_200_OK,
             )
@@ -219,7 +298,7 @@ class checkUserView(APIView):
                 {
                     "success": False,
                     "message": "User does not exist",
-                    "exists": False  # Add this for frontend clarity
+                    "exists": False 
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )
@@ -248,7 +327,6 @@ class UsersDetailAPIView(APIView):
     def patch(self, request, pk):
         user = self.get_object(pk)
         
-        # Add permission check to ensure users can only modify their own profiles
         if request.user.id != user.id and not request.user.is_staff:
             return Response(
                 {"detail": "You don't have permission to update this profile."},
@@ -263,42 +341,35 @@ class UsersDetailAPIView(APIView):
     
     
 class UserUpdateAPIView(UsersDetailAPIView):
-    """
-    This view is identical to UsersDetailAPIView but provides a separate endpoint
-    for profile updates at /users/{pk}/update/
-    """
     pass
 
 
 
 
 class PostsCreateAPIView(APIView):
-    # Add permission class to require authentication
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser] 
 
     def post(self, request):
-        # Add the user from the request
         data = request.data.copy()
         data['user'] = request.user.id
 
         serializer = PostsSerializer(data=data)
         if serializer.is_valid():
-            serializer.save(user=request.user)  # Explicitly set the user
+            serializer.save(user=request.user)  
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         
-        # Return the specific validation errors for debugging
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class PostsListAPIView(APIView):
-    # Add permission class to require authentication
     permission_classes = [permissions.IsAuthenticated]
     
     def get(self, request):
-        posts = Posts.objects.all().order_by('-date_creation')  # Most recent first
+        posts = Posts.objects.all().order_by('-date_creation')  
         serializer = PostsSerializer(posts, many=True)
         return Response(serializer.data)
-# Retrieve, update or delete a post
+
+
 class PostsDetailAPIView(APIView):
     def get_object(self, pk):
         return get_object_or_404(Posts, pk=pk)
@@ -327,35 +398,28 @@ class LikePostAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def get(self, request, pk):
-        """Get post details with like information"""
         post = get_object_or_404(Posts, pk=pk)
         serializer = PostsSerializer(post)
         return Response(serializer.data)
     
     def post(self, request, pk):
-        """Add a like to the post"""
         post = get_object_or_404(Posts, pk=pk)
         user = request.user
 
-        # Check if the user has already liked the post
         if Likes.objects.filter(post=post, user=user).exists():
             return Response({"message": "You have already liked this post."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Create the like
         Likes.objects.create(post=post, user=user)
         
-        # Return the updated like count
         return Response({
             "message": "Post liked successfully!",
             "num_likes": post.num_likes()
         }, status=status.HTTP_200_OK)
     
     def delete(self, request, pk):
-        """Remove a like from the post"""
         post = get_object_or_404(Posts, pk=pk)
         user = request.user
 
-        # Try to find and delete the like
         try:
             like = Likes.objects.get(post=post, user=user)
             like.delete()
@@ -388,7 +452,6 @@ class CommentListAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk):
-        """Get all comments for a specific post"""
         post = get_object_or_404(Posts, pk=pk)
         comments = post.comments.all()
         serializer = CommentsSerializer(comments, many=True)
@@ -402,13 +465,11 @@ class CommentListAPIView(APIView):
         if not content:
             return Response({"message": "Content is required."}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Create the comment
         comment = post.comments.create(user=user, content=content)
         serializer = CommentsSerializer(comment)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
     def put(self, request, pk, comment_id):
-        """Update a comment"""
         post = get_object_or_404(Posts, pk=pk)
         user = request.user
         content = request.data.get("content")
@@ -442,27 +503,19 @@ class CommentListAPIView(APIView):
         
 
 class UserPostsView(APIView):
-    """
-    API view to retrieve all posts from a specific user
-    """
     permission_classes = [permissions.IsAuthenticated]
     
     def get(self, request, user_id):
 
         try:
-            # Get the user by ID
             user = get_object_or_404(User, id=user_id)
             
-            # Get all posts by this user, ordered by creation date (newest first)
             posts = Posts.objects.filter(user=user).order_by('-date_creation')
             
-            # Serialize the posts
             posts_serializer = PostsSerializer(posts, many=True, context={'request': request})
             
-            # Serialize the user
             user_serializer = UserSerializer(user)
             
-            # Return both user data and posts
             response_data = {
                 'user': user_serializer.data,
                 'posts': posts_serializer.data
@@ -485,11 +538,9 @@ class SavePostAPIView(APIView):
         post = get_object_or_404(Posts, pk=pk)
         user = request.user
         
-        # Check if the user has already saved this post
         if SavedPost.objects.filter(post=post, user=user).exists():
             return Response({"message": "You have already saved this post"}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Create the saved post record
         SavedPost.objects.create(post=post, user=user)
         
         return Response({
@@ -537,3 +588,161 @@ class SaveStatusAPIView(APIView):
         return Response({
             "user_has_saved": user_has_saved
         }, status=status.HTTP_200_OK)
+
+
+class RessourceAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser] 
+    def get_object(self, pk, user):
+        try:
+            return Ressources.objects.get(pk=pk)
+        except Ressources.DoesNotExist:
+            raise Http404
+    def get(self, request):
+        ressources = Ressources.objects.all()
+        serializer = RessourceSerializer(ressources, many=True, context={'request': request})
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = RessourceSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def put(self, request, pk):
+        ressource = self.get_object(pk, request.user)
+        serializer = RessourceSerializer(ressource, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save() 
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        ressource = self.get_object(pk, request.user)
+        ressource.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def search_posts(request):
+    query = request.query_params.get('query', '')
+    if not query:
+        return Response([])
+    
+    posts = Posts.objects.filter(
+        Q(contenu_texte__icontains=query) | 
+        Q(user__username__icontains=query) 
+    ).select_related('user').order_by('-date_creation')[:10]
+    serializer = PostsSerializer(posts, many=True)
+    return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def search_users(request):
+    query = request.query_params.get('query', '')
+    if not query:
+        return Response([])
+    
+    users = User.objects.filter(
+        Q(username__icontains=query)
+    )[:10]
+    
+    serializer = UserSerializer(users, many=True)
+    return Response(serializer.data)
+
+# @api_view(['GET'])
+# @permission_classes([permissions.IsAuthenticated])
+# def search_groups(request):
+#     query = request.query_params.get('query', '')
+#     if not query:
+#         return Response([])
+    
+#     # Search in group name and description
+#     groups = Group.objects.filter(
+#         Q(name__icontains=query) | 
+#         Q(description__icontains=query)
+#     )[:10]  # Limit to 10 results
+    
+#     serializer = GroupSerializer(groups, many=True)
+#     return Response(serializer.data)
+
+class GroupAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, pk=None):
+        if pk:
+            # Get a specific group
+            groupe = get_object_or_404(Groupe, pk=pk)
+            
+            # Check if user is a member or admin
+            if request.user == groupe.admin or request.user in groupe.users.all():
+                serializer = GroupeSerializer(groupe)
+                return Response(serializer.data)
+            return Response(
+                {"detail": "You don't have permission to view this group."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        else:
+            # Filter groups based on query parameters
+            filter_type = request.query_params.get('filter', 'all')
+            
+            if filter_type == 'admin':
+                # Groups where user is admin
+                groups = Groupe.objects.filter(admin=request.user)
+            elif filter_type == 'member':
+                # Groups where user is a member
+                groups = request.user.member_groups.all()
+            else:
+                # All groups user has access to (either admin or member)
+                admin_groups = Groupe.objects.filter(admin=request.user)
+                member_groups = request.user.member_groups.all()
+                groups = (admin_groups | member_groups).distinct()
+            
+            serializer = GroupeSerializer(groups, many=True)
+            return Response(serializer.data)
+    
+    def post(self, request):
+ 
+        data = request.data.copy()
+        
+        serializer = GroupeSerializer(data=data, context={'request': request})
+        
+        if serializer.is_valid():
+            groupe = serializer.save(admin=request.user)
+            
+            if 'users' not in data or request.user.id not in data['users']:
+                groupe.users.add(request.user)
+            
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def put(self, request, pk):
+ 
+        groupe = get_object_or_404(Groupe, pk=pk)
+        
+        if request.user != groupe.admin:
+            return Response(
+                {"detail": "Only the group admin can update this group."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        serializer = GroupeSerializer(groupe, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def delete(self, request, pk):
+  
+        groupe = get_object_or_404(Groupe, pk=pk)
+        
+        if request.user != groupe.admin:
+            return Response(
+                {"detail": "Only the group admin can delete this group."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        groupe.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    
+

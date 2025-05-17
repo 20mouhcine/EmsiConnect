@@ -3,11 +3,13 @@ import Login from "./screens/Login"
 import  Register  from "./screens/Register";
 import { ForgotPasswordForm } from "./screens/ForgotPasswordForm";
 import Home from "./screens/Home";
-import ListeEtudiants from "./screens/ListeEtudiants";
+import ListeEtudiants from "./screens/Users";
 import { ThemeProvider } from "./components/theme-provider";
 import PrivateRoute from "@/components/PrivateRoute.jsx";
 import { Toaster } from "sonner";
-
+import Ressources from "./screens/Ressources";
+import PostDetail from "./screens/PostsDetail";
+import GroupManager from "./screens/GroupManager";
 import Profile  from "./screens/Profile";
 
 function App() {
@@ -23,6 +25,9 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/utilisateurs" element={<ListeEtudiants />} />
           <Route path="/profile/:id" element={<Profile/>}/>
+          <Route path="/ressources" element={<Ressources/>}/>
+          <Route path="/posts/:id" element={<PostDetail/>}/>
+          <Route path="/groups" element={<GroupManager/>}/>
         </Route>
       </Routes>
     </ThemeProvider>

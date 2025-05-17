@@ -19,22 +19,18 @@ import { toast } from "sonner";
 const Register = ({ className, ...props }) => {
   const navigate = useNavigate();
   
-  // Form state
   const [formData, setFormData] = useState({
     username: "",
     email: "",
-    userType: "", // Changed from role to userType for consistency
+    userType: "",
     password: "",
     confirmPassword: "",
   });
   
-  // Loading state
   const [isLoading, setIsLoading] = useState(false);
   
-  // Validation errors
   const [errors, setErrors] = useState({});
 
-  // Handle input changes
   const handleChange = (e) => {
     const { id, value } = e.target;
     setFormData({
@@ -42,7 +38,6 @@ const Register = ({ className, ...props }) => {
       [id]: value,
     });
     
-    // Clear error for this field when user types
     if (errors[id]) {
       setErrors({
         ...errors,
@@ -51,7 +46,6 @@ const Register = ({ className, ...props }) => {
     }
   };
 
-  // Handle select change
   const handleSelectChange = (value) => {
     setFormData({
       ...formData,
@@ -66,7 +60,6 @@ const Register = ({ className, ...props }) => {
     }
   };
 
-  // Check if user already exists
   async function checkUser(email) {
     try {
       const response = await axios.post("http://127.0.0.1:8000/api/checkuser/", {
@@ -76,11 +69,11 @@ const Register = ({ className, ...props }) => {
       return response.data.exists === true;
     } catch (error) {
       if (error.response && error.response.status === 404) {
-        return false; // L'utilisateur n'existe pas
+        return false; 
       }
   
       console.error("Erreur lors de la vérification de l'utilisateur:", error);
-      throw error; // Pour détecter d'autres erreurs (serveur, réseau, etc.)
+      throw error;
     }
   }
   
@@ -117,7 +110,6 @@ const Register = ({ className, ...props }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -128,7 +120,6 @@ const Register = ({ className, ...props }) => {
     setIsLoading(true);
     
     try {
-      // Check if user exists first
       if (await checkUser(formData.email)) {
         toast.error("Cet email est déjà utilisé.");
         setErrors(prev => ({
@@ -138,18 +129,15 @@ const Register = ({ className, ...props }) => {
         setIsLoading(false);
         return;
       }
-      
-      // If user doesn't exist, proceed with registration
       const response = await axios.post("http://127.0.0.1:8000/api/register/", {
         username: formData.username,
         email: formData.email,
-        role: formData.userType, // Sending userType as role to the API
+        role: formData.userType, 
         password: formData.password,
       });
       
       toast.success("Compte créé avec succès! Vous allez être redirigé vers la page de connexion.");
       
-      // Redirect to login page after successful registration
       setTimeout(() => {
         navigate("/login");
       }, 2000);

@@ -5,6 +5,7 @@ import {
 } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTheme } from "@/components/theme-provider";
+import { Link } from "react-router-dom";
 
 const UsersCard = ({ user }) => {
         const { theme } = useTheme();
@@ -19,7 +20,9 @@ const UsersCard = ({ user }) => {
             </Avatar>
             <div className="flex flex-col justify-center mx-2">
               <div className="font-medium text-sm sm:text-base">
+                <Link to={`/profile/${user.id}`} className="hover:underline">
                 <p>{user.username}</p>
+                </Link>
               </div>
               <div className="font-extralight text-sm sm:text-base">
                 <p>{user.role}</p>

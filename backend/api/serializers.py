@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Token,Posts, Commentaire, Likes,SavedPost
+from .models import User, Token,Posts, Commentaire, Likes,SavedPost,Ressources,Groupe
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -14,7 +14,7 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'password', 'role','bio','profile_picture']
+        fields = ['id', 'username', 'email', 'password', 'role','bio','profile_picture','email_is_verified']
 
     def create(self, validated_data):
         user = User(
@@ -28,23 +28,16 @@ class UserSerializer(serializers.ModelSerializer):
         return user
         
     def update(self, instance, validated_data):
-        """
-        Handle user profile updates, including optional password change
-        """
-        # Update basic fields
+
         instance.username = validated_data.get('username', instance.username)
         instance.email = validated_data.get('email', instance.email)
         
         
-        # Update profile fields
         if 'bio' in validated_data:
             instance.bio = validated_data.get('bio')
         
-        # Handle file uploads
         if 'profile_picture' in validated_data:
             instance.profile_picture = validated_data.get('profile_picture')
-        
-
         
         instance.save()
         return instance
@@ -90,10 +83,8 @@ class PostsSerializer(serializers.ModelSerializer):
     media = serializers.FileField(required=False, allow_null=True)
     save_count = serializers.SerializerMethodField()
 
-
     user = UserSerializer(read_only=True) 
 
-    
     class Meta:
         model = Posts
         fields = ['id', 'user', 'date_creation', 'date_modification', 'contenu_texte', 'media', 'num_comments', 'num_likes','save_count']
@@ -116,4 +107,17 @@ class SavedPostSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'post', 'date_saved']
         read_only_fields = ['user', 'date_saved']
 
+class RessourceSerializer(serializers.ModelSerializer):
+    media = serializers.FileField(required=False, allow_null=True)
+    user = UserSerializer(read_only=True)
+    class Meta:
+        model = Ressources
+        fields = ['id','user','date_creation','media','title']
+
+class GroupeSerializer(serializers.ModelSerializer):
+    admin_username = serializers.ReadOnlyField(source='admin.username')
     
+    class Meta:
+        model = Groupe
+        fields = ['id', 'admin', 'nom','bio','admin_username', 'users']
+        read_only_fields = ['admin']

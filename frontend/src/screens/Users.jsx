@@ -2,7 +2,6 @@ import React from 'react'
 import NavBar from '../components/NavBar'
 import SideBar from '../components/SideBar'
 import {useTheme} from "@/components/theme-provider.jsx";
-import CreatePost from "@/components/CreatePost.jsx";
 import UsersCard from '@/components/UsersCard';
 import { useEffect, useState } from 'react';
 import api from '@/lib/axios';

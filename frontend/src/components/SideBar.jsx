@@ -51,15 +51,15 @@ const SideBar = () => {
               
               <li className="flex items-center transition-all ease-in-out delay-0 hover:text-green-500 hover:bg-green-400/25 p-1 rounded-lg cursor-pointer">
                 <LibraryBig />
-                <a href="#" className="block py-2 px-4">
-                  Ressources
-                </a>
+                  <Link to="/ressources" className="block py-2 px-4">
+                  Ressources                  
+                  </Link>
               </li>
               <li className="flex items-center transition-all ease-in-out delay-0 hover:text-green-500 hover:bg-green-400/25 p-1 rounded-lg cursor-pointer">
                 <Users />
-                <a href="#" className="block py-2 px-4">
+                  <Link to="/groups" className="block py-2 px-4">
                   Groupes
-                </a>
+                  </Link>
               </li>
             </ul>
           </nav>
