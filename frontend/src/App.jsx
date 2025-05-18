@@ -11,6 +11,7 @@ import Ressources from "./screens/Ressources";
 import PostDetail from "./screens/PostsDetail";
 import GroupManager from "./screens/GroupManager";
 import Profile  from "./screens/Profile";
+import Chat from "./screens/Chat";
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
           <Route path="/ressources" element={<Ressources/>}/>
           <Route path="/posts/:id" element={<PostDetail/>}/>
           <Route path="/groups" element={<GroupManager/>}/>
+          <Route path="/chat" element={<Chat/>}/>
         </Route>
       </Routes>
     </ThemeProvider>

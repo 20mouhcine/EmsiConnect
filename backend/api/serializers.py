@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Token,Posts, Commentaire, Likes,SavedPost,Ressources,Groupe
+from .models import User, Token,Posts, Commentaire, Likes,SavedPost,Ressources,Groupe,Conversation,Message
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -119,5 +119,24 @@ class GroupeSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Groupe
-        fields = ['id', 'admin', 'nom','bio','admin_username', 'users']
+        fields = ['id', 'admin', 'nom','bio','admin_username', 'users','profile_picture']
         read_only_fields = ['admin']
+
+class ConversationSerializer(serializers.ModelSerializer):
+    participants = UserSerializer(many=True, read_only=True)
+    class Meta:
+        model = Conversation
+        fields = ['id','participants', 'created_at']
+
+
+class MessageSerializer(serializers.ModelSerializer):
+    sender = UserSerializer(many=True, read_only=True)
+    participants = serializers.SerializerMethodField()
+    class Meta:
+        model = Message
+        fields = ['id','conversation','sender','content','timestamp ', 'created_at']
+
+class CreateMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Message
+        fields = ['conversation', 'content']

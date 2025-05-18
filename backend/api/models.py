@@ -107,3 +107,18 @@ class Groupe(models.Model):
     def delete(self, *args, **kwargs):
         self.users.clear()
         super().delete(*args, **kwargs)
+
+    
+class Conversation(models.Model):
+    participants = models.ManyToManyField(User,related_name='conversations')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class Message(models.Model):
+    conversation = models.ForeignKey(Conversation,on_delete=models.CASCADE, related_name='messages',null=True)
+    sender = models.ForeignKey(User, on_delete=models.CASCADE,related_name="sender",null=True)
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE,related_name="receiver",null=True)
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    def __str__(self):
+        return f'{self.sender}: {self.content}'

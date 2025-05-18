@@ -61,7 +61,7 @@ const GroupCard = memo(({ group, user, openDialog, handleDelete, availableUsers 
                 const userData = availableUsers.find(u => parseInt(u.value) === userId);
                 return (
                   <Badge key={userId} variant="secondary">
-                    {userData ? userData.label : `User #${userId}`}
+                    {userData ? userData.label : <span>you</span>}
                   </Badge>
                 );
               })
@@ -190,10 +190,13 @@ const GroupManager = () => {
       const response = await api.get('/users');
       
       // Transform users data for multi-select
-      const formattedUsers = response.data.map(user => ({
-        value: user.id.toString(),
-        label: user.username || user.email
-      }));
+      const formattedUsers = response.data
+        .filter(u => u.id !==user?.id )
+        .map(u => ({
+          value: u.id.toString(),
+          label: u.username || u.email
+        }));
+        formattedUsers.shift()
       setAvailableUsers(formattedUsers);
       
       // Set selected users if editing
