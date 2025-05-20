@@ -69,9 +69,6 @@ const GroupCard = memo(
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => openDialog(group)}>
-                      Edit
-                    </DropdownMenuItem>
                     <DropdownMenuItem
                       className="text-red-500"
                       onClick={() => setIsAlertOpen(true)}
@@ -347,25 +344,16 @@ const GroupManager = () => {
       users: selectedOptions.map((option) => parseInt(option.value)),
     }));
   }, []);
-
-  // Handle form submission for create/update
   const handleSubmit = useCallback(
     async (e) => {
       e.preventDefault();
 
       try {
-        if (editingGroup) {
-          // Update existing group
-          await api.put(`/groups/${editingGroup.id}/`, formData);
-        } else {
-          // Create new group
-          await api.post("/groups/", formData);
-        }
 
-        // Refresh groups list
+          await api.post("/groups/", formData);
+
         fetchGroups();
 
-        // Close dialog and reset
         setDialogOpen(false);
         resetForm();
       } catch (err) {
@@ -373,7 +361,7 @@ const GroupManager = () => {
         setError("Failed to save group. Please try again.");
       }
     },
-    [editingGroup, formData, fetchGroups, resetForm]
+    [ formData, fetchGroups, resetForm]
   );
 
   const handleDelete = async (groupId) => {

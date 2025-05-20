@@ -113,7 +113,6 @@ function CreatePost({ onPostCreated }) {
                     <div className="flex items-center gap-2 mb-4">
                         <input
                             type="file"
-                            accept="image/*"
                             ref={fileInputRef}
                             onChange={handleFileChange}
                             className="flex w-full rounded-md border border-input px-3 py-2 text-sm file:border-0 file:bg-primary file:text-primary-foreground file:mr-2 file:px-2 file:py-1 file:rounded-md hover:file:bg-primary/90"

@@ -32,6 +32,8 @@ function App() {
           <Route path="/groups" element={<GroupManager/>}/>
           <Route path="/chat" element={<Chat/>}/>
           <Route path="/group/:id" element={<Group/>}/>
+          <Route path="/chat/:selectedUser" element={<Chat />} />
+
         </Route>
       </Routes>
     </ThemeProvider>

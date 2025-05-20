@@ -2,17 +2,17 @@
 # Create your views here.
 from django.contrib.auth.hashers import make_password,check_password
 from django.core.mail import send_mail
-from rest_framework import status, permissions,generics
-from rest_framework.exceptions import PermissionDenied
+from rest_framework import status, permissions,viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import User, Token, Posts, Likes, Commentaire,SavedPost,Ressources,Groupe,VerificationToken,Conversation,Message
-from .serializers import UserSerializer, TokenSerializer,PostsSerializer, MyTokenObtainPairSerializer,CommentsSerializer,SavedPostSerializer,RessourceSerializer,GroupeSerializer,MessageSerializer,ConversationSerializer,CreateMessageSerializer
+from .models import User, Token, Posts, Likes, Commentaire,SavedPost,Ressources,Groupe,VerificationToken,Message,Conversation
+from .serializers import UserSerializer,PostsSerializer, MyTokenObtainPairSerializer,CommentsSerializer,SavedPostSerializer,RessourceSerializer,GroupeSerializer,MessageSerializer,ConversationSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.http import Http404
 from datetime import  timedelta
+from rest_framework.decorators import action
 import hashlib
 from django.db.models import Q
 import uuid
@@ -681,9 +681,7 @@ class GroupAPIView(APIView):
                 serializer = GroupeSerializer(groupe)
                 return Response(serializer.data)
             
-            if not groupe.is_private:
-                serializer = GroupeSerializer(groupe)
-                return Response(serializer.data)
+            
                 
             return Response(
                 {"detail": "You don't have permission to view this group."},
@@ -762,7 +760,7 @@ class GroupDetailAPIView(APIView):
         group = self.get_object(pk)
         
         # Check if user is a member or admin, or if the group is public
-        if request.user == group.admin or request.user in group.users.all() or not group.is_private:
+        if request.user == group.admin or request.user in group.users.all():
             serializer = GroupeSerializer(group)
             return Response(serializer.data)
         
@@ -789,14 +787,7 @@ class GroupMemberAPIView(APIView):
             return Response({"detail": "You're already a member of this group."}, 
                             status=status.HTTP_400_BAD_REQUEST)
         
-        # For private groups, implement request/approval flow (simplified here)
-        if group.is_private:
-            # In a real app, you might create a GroupJoinRequest model
-            # For now, only admin can add members to private groups
-            return Response(
-                {"detail": "This is a private group. Contact the admin to join."}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
+       
         
         # Add user to the group
         group.users.add(user)
@@ -916,95 +907,106 @@ class GroupRemoveMemberAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-class ConversationListCreateView(generics.ListCreateAPIView):
-
+class ConversationViewSet(viewsets.ModelViewSet):
     serializer_class = ConversationSerializer
     permission_classes = [IsAuthenticated]
-
+    
     def get_queryset(self):
-        return (Conversation.objects
-                .filter(participants=self.request.user)
-                .prefetch_related('participants'))
-
-    def post(self, request, *args, **kwargs):
-        participants_data = request.data.get('participants', [])
-
-        if len(participants_data) != 2:
-            return Response(
-                {'error': 'A conversation needs exactly two participants'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if str(request.user.id) not in map(str, participants_data):
-            return Response(
-                {'error': 'You are not a participant of this conversation'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        users = User.objects.filter(id__in=participants_data)
-        if users.count() != 2:
-            return Response(
-                {'error': 'A conversation needs exactly two participants'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
+        return Conversation.objects.filter(
+            Q(initiator=self.request.user) | Q(receiver=self.request.user)
+        )
+    
+    def create(self, request):
+        user_id = request.data.get('user_id')
+        if not user_id:
+            return Response({"error": "user_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if conversation already exists
         existing_conversation = Conversation.objects.filter(
-            participants__id=participants_data[0]
-        ).filter(
-            participants__id=participants_data[1]
-        ).distinct()
-
-        if existing_conversation.exists():
-            return Response(
-                {'error': 'A conversation already exists between these participants'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        conversation = Conversation.objects.create()
-        conversation.participants.set(users)
-
-        #serialize the conversation
+            (Q(initiator=request.user) & Q(receiver_id=user_id)) |
+            (Q(initiator_id=user_id) & Q(receiver=request.user))
+        ).first()
+        
+        if existing_conversation:
+            serializer = self.get_serializer(existing_conversation)
+            return Response(serializer.data)
+        
+        # Create new conversation
+        conversation = Conversation(
+            initiator=request.user,
+            receiver_id=user_id
+        )
+        conversation.save()
+        
         serializer = self.get_serializer(conversation)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=['get'])
+    def messages(self, request, pk=None):
+        conversation = self.get_object()
+        since_id = request.query_params.get('since_id', 0)
+        
+        messages = Message.objects.filter(
+            conversation=conversation,
+            id__gt=since_id
+        ).order_by('timestamp')
+        
+        serializer = MessageSerializer(messages, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def read(self, request, pk=None):
+        conversation = self.get_object()
+        message_ids = request.data.get('message_ids', [])
+        
+        if not message_ids:
+            return Response({"error": "message_ids are required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Only mark messages as read if they were sent to the current user
+        messages = Message.objects.filter(
+            id__in=message_ids,
+            conversation=conversation,
+            sender__not=request.user
+        )
+        
+        updated_count = messages.update(read=True)
+        return Response({"updated": updated_count})
 
-class MessageListCreateView(generics.ListCreateAPIView):
-    permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        conversation_id = self.kwargs['conversation_id']
-        conversation = self.get_conversation(conversation_id)
-
-        return conversation.messages.order_by('timestamp')
-
-    def get_serializer_class(self):
-        if self.request.method == 'POST':
-            return CreateMessageSerializer
-        return MessageSerializer
-
-    def perform_create(self, serializer):
-        #fetch conversation and validate user participation
-        print("Incoming conversation", self.request.data)
-        conversation_id = self.kwargs['conversation_id']
-        conversation = self.get_conversation(conversation_id)
-
-        serializer.save(sender=self.request.user, conversation=conversation)
-
-    def get_conversation(self, conversation_id):
-        #check if user is a participant of the conversation, it helps to fetch the conversation and 
-        #validate the participants
-        conversation = get_object_or_404(Conversation, id=conversation_id)
-        if self.request.user not in conversation.participants.all():
-            raise PermissionDenied('You are not a participant of this conversation')
-        return conversation
-
-class MessageRetrieveDestroyView(generics.RetrieveDestroyAPIView):
-    permission_classes = [IsAuthenticated]
+class MessageViewSet(viewsets.ModelViewSet):
     serializer_class = MessageSerializer
-
-    def get_queryset(self):
-        conversation_id = self.kwargs['conversation_id']
-        return Message.objects.filter(conversation__id=conversation_id)
-
-    def perform_destroy(self, instance):
-        if instance.sender != self.request.user:
-            raise PermissionDenied('You are not the sender of this message')
-        instance.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    permission_classes = [IsAuthenticated]
+    
+    def list(self, request, conversation_pk=None):
+        conversation = get_object_or_404(
+            Conversation, 
+            Q(initiator=request.user) | Q(receiver=request.user),
+            pk=conversation_pk
+        )
+        
+        since_id = request.query_params.get('since_id', 0)
+        messages = Message.objects.filter(
+            conversation=conversation,
+            id__gt=since_id
+        ).order_by('timestamp')
+        
+        serializer = self.get_serializer(messages, many=True)
+        return Response(serializer.data)
+    
+    def create(self, request, conversation_pk=None):
+        conversation = get_object_or_404(
+            Conversation, 
+            Q(initiator=request.user) | Q(receiver=request.user),
+            pk=conversation_pk
+        )
+        
+        # Create new message
+        message = Message(
+            conversation=conversation,
+            sender=request.user,
+            content=request.data.get('content', '')
+        )
+        message.save()
+        
+        serializer = self.get_serializer(message)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

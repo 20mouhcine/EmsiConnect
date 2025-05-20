@@ -104,22 +104,32 @@ class Groupe(models.Model):
     users = models.ManyToManyField('User',related_name='member_groups',null=True)
     profile_picture = models.ImageField(null=True,upload_to='groups/', blank=True)
     bio = models.CharField(max_length=500, null=True)
-    is_private = models.BooleanField(default=False)
     def delete(self, *args, **kwargs):
         self.users.clear()
         super().delete(*args, **kwargs)
 
     
 class Conversation(models.Model):
-    participants = models.ManyToManyField(User,related_name='conversations')
-    created_at = models.DateTimeField(auto_now_add=True)
+    initiator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='initiated_conversations')
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_conversations')
+    start_timestamp = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('initiator', 'receiver')
+    
+    def __str__(self):
+        return f"Conversation between {self.initiator.username} and {self.receiver.username}"
 
 
 class Message(models.Model):
-    conversation = models.ForeignKey(Conversation,on_delete=models.CASCADE, related_name='messages',null=True)
-    sender = models.ForeignKey(User, on_delete=models.CASCADE,related_name="sender",null=True)
-    receiver = models.ForeignKey(User, on_delete=models.CASCADE,related_name="receiver",null=True)
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
+    read = models.BooleanField(default=False)
+    
     def __str__(self):
-        return f'{self.sender}: {self.content}'
+        return f"{self.sender.username}: {self.content[:20]}"
+    
+    class Meta:
+        ordering = ['timestamp']

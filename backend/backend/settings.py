@@ -177,3 +177,6 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=2),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
+
+
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024

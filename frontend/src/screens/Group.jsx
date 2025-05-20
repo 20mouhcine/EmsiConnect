@@ -15,7 +15,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,14 +29,13 @@ import PostCard from "@/components/PostCard";
 import NavBar from "@/components/NavBar";
 import SideBar from "@/components/SideBar";
 import { useTheme } from "@/components/theme-provider";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import api from "@/lib/axios";
 import AddMembersForm from "@/components/AddMembersForm";
 const GroupEditForm = ({ initialData = {}, onComplete }) => {
   const [formData, setFormData] = useState({
     nom: initialData.nom || "",
     bio: initialData.bio || "",
-    isPrivate: initialData.is_private || false,
   });
 
   const [profilePicture, setProfilePicture] = useState(null);
@@ -58,7 +56,6 @@ const GroupEditForm = ({ initialData = {}, onComplete }) => {
     const file = e.target.files[0];
     if (file) {
       setProfilePicture(file);
-      // Create a preview URL for the selected image
       const fileUrl = URL.createObjectURL(file);
       setPreviewUrl(fileUrl);
     }
@@ -69,18 +66,14 @@ const GroupEditForm = ({ initialData = {}, onComplete }) => {
     setIsLoading(true);
     
     try {
-      // Create FormData object to handle file upload
       const formDataObj = new FormData();
       formDataObj.append("nom", formData.nom);
       formDataObj.append("bio", formData.bio);
-      formDataObj.append("is_private", formData.isPrivate);
       
-      // Only append profile_picture if a new one was selected
       if (profilePicture) {
         formDataObj.append("profile_picture", profilePicture);
       }
 
-      // Use multipart/form-data content type for file uploads
       await api.patch(`/groups/${initialData.id}/`, formDataObj, {
         headers: {
           "Content-Type": "multipart/form-data",
@@ -99,7 +92,6 @@ const GroupEditForm = ({ initialData = {}, onComplete }) => {
     <form onSubmit={handleSubmit} className="space-y-2 max-h-[80vh] overflow-y-auto px-1">
       <h3 className="text-base font-medium mb-2">Modifier le groupe</h3>
 
-      {/* Profile Picture Section - More compact */}
       <div className="mb-2">
         <label htmlFor="profile_picture" className="block text-sm font-medium mb-1">
           Photo de profil
@@ -368,6 +360,7 @@ const Group = () => {
   const isAdmin = currentUser && group && currentUser.user_id === group.admin;
   const isMember =
     currentUser && members.some((member) => member.id === currentUser.user_id);
+    const navigate = useNavigate();
   const handleJoinGroup = async () => {
     if (isJoining) return;
 
@@ -389,10 +382,9 @@ const Group = () => {
   const handleLeaveGroup = async () => {
     try {
       await api.delete(`/groups/${id}/members/`);
-      // Refresh group data after leaving
-      await fetchGroupData();
     } catch (error) {
       console.error("Error leaving group:", error);
+    navigate("/groups");
       setError(
         "Impossible de quitter le groupe. Veuillez réessayer plus tard."
       );
@@ -462,20 +454,6 @@ const Group = () => {
                 isDarkTheme ? "bg-gray-800" : "bg-gray-200"
               }`}
             >
-              {isAdmin && (
-                <div className="absolute bottom-4 right-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-1"
-                  >
-                    <ImagePlus size={16} />
-                    <span className="hidden sm:inline">
-                      Ajouter une couverture
-                    </span>
-                  </Button>
-                </div>
-              )}
               <div className="absolute -bottom-16 left-6">
                 <Avatar className="h-32 w-32 border-4 border-white shadow-md">
                   {group?.profile_picture ? (
@@ -500,16 +478,8 @@ const Group = () => {
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-bold">{group?.nom}</h1>
-                    {group?.is_private && (
-                      <span
-                        className={`text-xs px-2 py-1 rounded-full ${
-                          isDarkTheme ? "bg-gray-700" : "bg-gray-200"
-                        }`}
-                      >
-                        Privé
-                      </span>
-                    )}
+                    <h1 className="text-2xl font-bold">{group?.nom.toUpperCase()}</h1>
+                    
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     <Users

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Token,Posts, Commentaire, Likes,SavedPost,Ressources,Groupe,Conversation,Message
+from .models import User, Token,Posts, Commentaire, Likes,SavedPost,Ressources,Groupe,Message,Conversation
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -120,24 +120,37 @@ class GroupeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Groupe
-        fields = ['id', 'admin', 'nom', 'bio', 'admin_username', 'users','members', 'profile_picture', 'is_private']
+        fields = ['id', 'admin', 'nom', 'bio', 'admin_username', 'users','members', 'profile_picture']
         read_only_fields = ['admin']
 
+class MessageSerializer(serializers.ModelSerializer):
+    sender = UserSerializer(read_only=True)
+    
+    class Meta:
+        model = Message
+        fields = ['id', 'conversation', 'sender', 'content', 'timestamp', 'read']
+        read_only_fields = ['id', 'sender', 'timestamp', 'read']
+
+
 class ConversationSerializer(serializers.ModelSerializer):
-    participants = UserSerializer(many=True, read_only=True)
+    initiator = UserSerializer(read_only=True)
+    receiver = UserSerializer(read_only=True)
+    last_message = serializers.SerializerMethodField()
+    unread_count = serializers.SerializerMethodField()
+    
     class Meta:
         model = Conversation
-        fields = ['id','participants', 'created_at']
-
-
-class MessageSerializer(serializers.ModelSerializer):
-    sender = UserSerializer(many=True, read_only=True)
-    participants = serializers.SerializerMethodField()
-    class Meta:
-        model = Message
-        fields = ['id','conversation','sender','content','timestamp ', 'created_at']
-
-class CreateMessageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Message
-        fields = ['conversation', 'content']
+        fields = ['id', 'initiator', 'receiver', 'start_timestamp', 'last_message', 'unread_count']
+        read_only_fields = ['start_timestamp']
+    
+    def get_last_message(self, obj):
+        last_message = obj.messages.order_by('-timestamp').first()
+        if last_message:
+            return MessageSerializer(last_message).data
+        return None
+    
+    def get_unread_count(self, obj):
+        user = self.context.get('request').user if self.context.get('request') else None
+        if not user:
+            return 0
+        return obj.messages.filter(read=False).exclude(sender=user).count()

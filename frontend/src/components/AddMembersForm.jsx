@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useTheme } from '@/components/theme-provider';
 import MultiSelect from '@/components/ui/multi-select';
 import api from '@/lib/axios';
+import { toast } from 'sonner';
 
 const AddMembersForm = ({ groupId, existingMembers = [], onMemberAdded }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -68,6 +69,7 @@ const AddMembersForm = ({ groupId, existingMembers = [], onMemberAdded }) => {
       await api.post(`/groups/${groupId}/add-members/`, {
         user_ids: userIds
       });
+      toast.success(`${selectedUsers.length} membre${selectedUsers.length?"":"s"} ajouté${selectedUsers.length?"":"s"} avec success`)
       
       // Reset form
       setSelectedUsers([]);
@@ -79,7 +81,7 @@ const AddMembersForm = ({ groupId, existingMembers = [], onMemberAdded }) => {
       }
     } catch (error) {
       console.error('Error adding members:', error);
-      // You might want to show an error message to the user here
+      toast.error("Ajout des membres a échoué, Veuillez réssayer plus tard");
     } finally {
       setIsAdding(false);
     }
@@ -108,7 +110,7 @@ const AddMembersForm = ({ groupId, existingMembers = [], onMemberAdded }) => {
 
   return (
     <div className={`mb-6 p-4 border rounded-lg ${
-         'bg-gray-800 border-gray-700' 
+         'bg-green-50 border-green-500 border-dashed' 
     }`}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-medium">Ajouter des membres</h3>
@@ -184,7 +186,7 @@ const AddMembersForm = ({ groupId, existingMembers = [], onMemberAdded }) => {
         <Button
           onClick={handleAddMembers}
           disabled={selectedUsers.length === 0 || isAdding}
-          className="transition-all ease-in-out delay-0 bg-green-100 text-gray-700 hover:text-green-500 hover:bg-green-400/25"
+          className="transition-all ease-in-out delay-0 bg-green-100 text-gray-900 hover:text-green-500 hover:bg-green-400/25"
         >
           {isAdding 
             ? 'Ajout en cours...' 

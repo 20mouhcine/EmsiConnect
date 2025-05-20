@@ -1,15 +1,15 @@
 import React from "react";
 import {
   Card,
-
 } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTheme } from "@/components/theme-provider";
 import { Link } from "react-router-dom";
 
 const UsersCard = ({ user }) => {
-        const { theme } = useTheme();
-        const isDarkTheme = theme === 'dark';
+  const { theme } = useTheme();
+  const isDarkTheme = theme === 'dark';
+
   return (
     <div>
       <Card className={`mt-5 ${isDarkTheme ? 'bg-black hover:outline hover:outline-green-500' : 'bg-white hover:bg-gray-100/75'} transition-all duration-200 ease-in-out`}>
@@ -21,7 +21,7 @@ const UsersCard = ({ user }) => {
             <div className="flex flex-col justify-center mx-2">
               <div className="font-medium text-sm sm:text-base">
                 <Link to={`/profile/${user.id}`} className="hover:underline">
-                <p>{user.username}</p>
+                  <p>{user.username}</p>
                 </Link>
               </div>
               <div className="font-extralight text-sm sm:text-base">
@@ -31,7 +31,11 @@ const UsersCard = ({ user }) => {
           </div>
           <div>
             <div className="text-xs sm:text-sm text-muted-foreground mx-2">
-              <button className=" rounded-md hover:text-green-500 hover:bg-green-400/25 p-2">Envoyer Message</button>
+              <Link to={`/chat/${user.id}`}>
+                <button className="rounded-md hover:text-green-500 hover:bg-green-400/25 p-2">
+                  Envoyer Message
+                </button>
+              </Link>
             </div>
           </div>
         </div>

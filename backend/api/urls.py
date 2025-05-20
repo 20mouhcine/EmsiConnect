@@ -1,6 +1,14 @@
-from django.urls import path
+from django.urls import path,include
+from rest_framework.routers import DefaultRouter
+from rest_framework_nested import routers
 from . import views
 from rest_framework_simplejwt.views import  TokenRefreshView
+
+router = DefaultRouter()
+router.register(r'conversation', views.ConversationViewSet, basename='conversation')
+
+conversation_router = routers.NestedSimpleRouter(router, r'conversation', lookup='conversation')
+conversation_router.register(r'messages', views.MessageViewSet, basename='conversation-messages')
 
 urlpatterns = [
     # Your existing URL patterns
@@ -37,7 +45,14 @@ urlpatterns = [
     path('groups/<int:pk>/', views.GroupAPIView.as_view(), name='group-detail'),
     path('groups/<int:pk>/add-members/', views.GroupAddMembersAPIView.as_view(), name='group-add-members'),
     path('groups/<int:pk>/posts/', views.GroupDetailAPIView.as_view(), name='group-posts'),
-    path('groups/<int:pk>/members/', views.GroupMemberAPIView.as_view(), name='group-members'),    
+        path('groups/<int:pk>/members/', views.GroupMemberAPIView.as_view(), name='group-members'),    
     path('groups/<int:pk>/remove-member/',views.GroupRemoveMemberAPIView.as_view(), name='group-remove-member'),
-    path('conversation/',views.ConversationListCreateView.as_view,name='conversation'),
+    path('conversation/<int:conversation_pk>/messages/', 
+         views.MessageViewSet.as_view({'get': 'list', 'post': 'create'}), 
+         name='conversation-messages'),
+    path('conversation/<int:conversation_pk>/read/', 
+         views.ConversationViewSet.as_view({'post': 'read'}), 
+         name='conversation-read'),
+     path('api/', include(router.urls)),
+    path('api/', include(conversation_router.urls)),
 ]
