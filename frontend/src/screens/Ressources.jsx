@@ -145,14 +145,14 @@ const Resources = () => {
   return (
     <div
       className={`flex flex-col min-h-screen ${
-        isDarkTheme ? "bg-gray-950" : "bg-gray-50"
+        isDarkTheme ? "bg-black" : "bg-gray-50"
       }`}
     >
       <NavBar />
-      <div className="flex mt-4 sm:mt-6 lg:-mt-2">
+      <div className={`flex mt-4 sm:mt-6 lg:-mt-2 `}>
         <SideBar />
-        <div className="flex-1 flex justify-center items-start p-4 sm:p-6">
-          <div className="w-full max-w-3xl">
+        <div className={`flex-1 flex justify-center items-start p-4 sm:p-6`}>
+          <div className="w-full max-w-3xl ">
             {currentUser?.role === "enseignant" ? (
               <Card className="shadow-lg mb-2">
                 <CardHeader>
@@ -230,7 +230,7 @@ const Resources = () => {
               <></>
             )}
 
-            <Card className="shadow-lg p-2">
+            <Card className={`shadow-lg p-2 ${isDarkTheme? 'bg-black': 'bg-white'}`}>
               <CardContent className="space-y-4">
                 <div className="space-y-2 mt-6">
                   <h3 className="text-lg font-medium">Available Resources</h3>
@@ -244,7 +244,7 @@ const Resources = () => {
                           className="flex items-center justify-between p-3 border rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 mb-2"
                         >
                           <div className="flex items-center gap-2">
-                            <FileIcon className="h-5 w-5 text-blue-500" />
+                            <FileIcon className="h-5 w-5 text-green-500" />
                             <span className="font-medium">
                               {resource.title || `Resource ${resource.id}`}
                             </span>

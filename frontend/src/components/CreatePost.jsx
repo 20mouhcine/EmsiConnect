@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { toast } from "sonner"
 import { useRef, useState } from "react"
 import axios from "axios"
+import api from "@/lib/axios"
 
 function CreatePost({ onPostCreated }) {
     const [content, setContent] = useState("");
@@ -20,6 +21,7 @@ function CreatePost({ onPostCreated }) {
     const [selectedFile, setSelectedFile] = useState(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const user = JSON.parse(localStorage.getItem("user"));
+    const currentUser = api.get(`/users/${user.user_id}/`).data;
 
     const handleFileChange = (e) => {
         if (e.target.files[0]) {
@@ -69,6 +71,7 @@ function CreatePost({ onPostCreated }) {
         }
     };
     const avatarFallback = user?.username?.substring(0, 2).toUpperCase();
+    console.log(user)
 
     return (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "channels",
+    
 ]
 
 ASGI_APPLICATION = 'backend.asgi.application'
@@ -52,6 +53,7 @@ CHANNEL_LAYERS = {
         'BACKEND': 'channels.layers.InMemoryChannelLayer',
     },
 }
+CSRF_TRUSTED_ORIGINS = ['http://localhost:5173/']
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -63,8 +65,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
-
 ]
+
 
 ROOT_URLCONF = 'backend.urls'
 

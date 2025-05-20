@@ -104,6 +104,7 @@ class Groupe(models.Model):
     users = models.ManyToManyField('User',related_name='member_groups',null=True)
     profile_picture = models.ImageField(null=True,upload_to='groups/', blank=True)
     bio = models.CharField(max_length=500, null=True)
+    is_private = models.BooleanField(default=False)
     def delete(self, *args, **kwargs):
         self.users.clear()
         super().delete(*args, **kwargs)

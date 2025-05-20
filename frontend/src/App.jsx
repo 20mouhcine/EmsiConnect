@@ -12,6 +12,7 @@ import PostDetail from "./screens/PostsDetail";
 import GroupManager from "./screens/GroupManager";
 import Profile  from "./screens/Profile";
 import Chat from "./screens/Chat";
+import Group from "./screens/Group";
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
           <Route path="/posts/:id" element={<PostDetail/>}/>
           <Route path="/groups" element={<GroupManager/>}/>
           <Route path="/chat" element={<Chat/>}/>
+          <Route path="/group/:id" element={<Group/>}/>
         </Route>
       </Routes>
     </ThemeProvider>

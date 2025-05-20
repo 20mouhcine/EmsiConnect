@@ -667,6 +667,7 @@ def search_users(request):
 #     serializer = GroupSerializer(groups, many=True)
 #     return Response(serializer.data)
 
+
 class GroupAPIView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -679,16 +680,19 @@ class GroupAPIView(APIView):
             if request.user == groupe.admin or request.user in groupe.users.all():
                 serializer = GroupeSerializer(groupe)
                 return Response(serializer.data)
+            
+            if not groupe.is_private:
+                serializer = GroupeSerializer(groupe)
+                return Response(serializer.data)
+                
             return Response(
                 {"detail": "You don't have permission to view this group."},
                 status=status.HTTP_403_FORBIDDEN
             )
         else:
-            # Filter groups based on query parameters
             filter_type = request.query_params.get('filter', 'all')
             
             if filter_type == 'admin':
-                # Groups where user is admin
                 groups = Groupe.objects.filter(admin=request.user)
             elif filter_type == 'member':
                 # Groups where user is a member
@@ -703,7 +707,6 @@ class GroupAPIView(APIView):
             return Response(serializer.data)
     
     def post(self, request):
- 
         data = request.data.copy()
         
         serializer = GroupeSerializer(data=data, context={'request': request})
@@ -711,14 +714,16 @@ class GroupAPIView(APIView):
         if serializer.is_valid():
             groupe = serializer.save(admin=request.user)
             
+            # Add current user as a member if not already included
             if 'users' not in data or request.user.id not in data['users']:
                 groupe.users.add(request.user)
             
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            # Return the updated group with full member information
+            updated_serializer = GroupeSerializer(groupe)
+            return Response(updated_serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    def put(self, request, pk):
- 
+    def patch(self, request, pk):
         groupe = get_object_or_404(Groupe, pk=pk)
         
         if request.user != groupe.admin:
@@ -734,8 +739,9 @@ class GroupAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, pk):
-  
         groupe = get_object_or_404(Groupe, pk=pk)
+        if groupe.users.count == 1:
+            groupe.delete()
         
         if request.user != groupe.admin:
             return Response(
@@ -745,8 +751,170 @@ class GroupAPIView(APIView):
         
         groupe.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+class GroupDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, pk):
+        return get_object_or_404(Groupe, pk=pk)
+    
+    def get(self, request, pk):
+        group = self.get_object(pk)
+        
+        # Check if user is a member or admin, or if the group is public
+        if request.user == group.admin or request.user in group.users.all() or not group.is_private:
+            serializer = GroupeSerializer(group)
+            return Response(serializer.data)
+        
+        return Response(
+            {"detail": "You don't have permission to view this group."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+class GroupMemberAPIView(APIView):
+    """
+    API view for managing group members
+    """
+    permission_classes = [IsAuthenticated]
+    def get_group(self, pk):
+        return get_object_or_404(Groupe, pk=pk)
+        
+    
+    def post(self, request, pk):
+        group = self.get_group(pk)
+        user = request.user
+        
+        # Check if the user is already a member
+        if user in group.users.all():
+            return Response({"detail": "You're already a member of this group."}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+        
+        # For private groups, implement request/approval flow (simplified here)
+        if group.is_private:
+            # In a real app, you might create a GroupJoinRequest model
+            # For now, only admin can add members to private groups
+            return Response(
+                {"detail": "This is a private group. Contact the admin to join."}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Add user to the group
+        group.users.add(user)
+        return Response({"detail": "Successfully joined the group."})
+        
+    def delete(self, request, pk):
+        """
+        Leave a group
+        """
+        group = self.get_group(pk)
+        user = request.user
+        
+        # Check if the user is a member
+        if user not in group.users.all():
+            return Response({"detail": "You're not a member of this group."}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+                            
+        # Admin cannot leave without appointing new admin
+        if user == group.admin:
+            return Response(
+                {"detail": "As the admin, you need to transfer ownership before leaving."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Remove user from the group
+        group.users.remove(user)
+        return Response({"detail": "Successfully left the group."})
     
 
+
+class GroupAddMembersAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        group = get_object_or_404(Groupe, pk=pk)
+
+        # Seul l'admin peut ajouter des membres
+        if request.user != group.admin:
+            return Response(
+                {"detail": "Only the group admin can add members."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        user_ids = request.data.get('user_ids', [])
+        if not isinstance(user_ids, list) or not user_ids:
+            return Response(
+                {"detail": "A list of user IDs is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        added = []
+        already_members = []
+        invalid_ids = []
+
+        for user_id in user_ids:
+            try:
+                user = User.objects.get(id=user_id)
+                if user in group.users.all():
+                    already_members.append(user_id)
+                else:
+                    group.users.add(user)
+                    added.append(user_id)
+            except User.DoesNotExist:
+                invalid_ids.append(user_id)
+
+        return Response({
+            "added": added,
+            "already_members": already_members,
+            "invalid_ids": invalid_ids,
+        }, status=status.HTTP_200_OK)
+
+class GroupRemoveMemberAPIView(APIView):
+
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, pk):
+        group = get_object_or_404(Groupe, pk=pk)
+        
+        if request.user != group.admin:
+            return Response(
+                {"detail": "Only the group admin can remove members."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        user_id = request.data.get('user_id')
+        if not user_id:
+            return Response(
+                {"detail": "User ID is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            user_to_remove = User.objects.get(id=user_id)
+            
+            if user_to_remove not in group.users.all():
+                return Response(
+                    {"detail": "This user is not a member of the group."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if user_to_remove == group.admin:
+                return Response(
+                    {"detail": "Cannot remove the group admin."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            group.users.remove(user_to_remove)
+            
+            return Response({
+                "detail": "Member removed successfully.",
+                "user_id": user_id
+            })
+            
+        except User.DoesNotExist:
+            return Response(
+                {"detail": "User not found."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 class ConversationListCreateView(generics.ListCreateAPIView):
 
@@ -758,7 +926,7 @@ class ConversationListCreateView(generics.ListCreateAPIView):
                 .filter(participants=self.request.user)
                 .prefetch_related('participants'))
 
-    def create(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         participants_data = request.data.get('participants', [])
 
         if len(participants_data) != 2:

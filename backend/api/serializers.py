@@ -116,10 +116,11 @@ class RessourceSerializer(serializers.ModelSerializer):
 
 class GroupeSerializer(serializers.ModelSerializer):
     admin_username = serializers.ReadOnlyField(source='admin.username')
-    
+    members = UserSerializer(source='users', many=True, read_only=True)
+
     class Meta:
         model = Groupe
-        fields = ['id', 'admin', 'nom','bio','admin_username', 'users','profile_picture']
+        fields = ['id', 'admin', 'nom', 'bio', 'admin_username', 'users','members', 'profile_picture', 'is_private']
         read_only_fields = ['admin']
 
 class ConversationSerializer(serializers.ModelSerializer):
