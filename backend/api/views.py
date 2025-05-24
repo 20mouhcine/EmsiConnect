@@ -5,8 +5,8 @@ from django.core.mail import send_mail
 from rest_framework import status, permissions,viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import User, Token, Posts, Likes, Commentaire,SavedPost,Ressources,Groupe,VerificationToken,Message,Conversation,GroupMessage,GroupeConversation,Reports
-from .serializers import UserSerializer,PostsSerializer,TokenSerializer, MyTokenObtainPairSerializer,CommentsSerializer,SavedPostSerializer,RessourceSerializer,GroupeSerializer,MessageSerializer,ConversationSerializer,GroupMessageSerializer,GroupeConversationSerializer,ReportsListSerializer,ReportsCreateSerializer
+from .models import User, Token, Posts, Likes, Commentaire,SavedPost,Ressources,Groupe,VerificationToken,Message,Conversation,Reports
+from .serializers import UserSerializer,PostsSerializer,TokenSerializer, MyTokenObtainPairSerializer,CommentsSerializer,SavedPostSerializer,RessourceSerializer,GroupeSerializer,MessageSerializer,ConversationSerializer,ReportsListSerializer,ReportsCreateSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.conf import settings
 from django.shortcuts import get_object_or_404
@@ -340,6 +340,14 @@ class UsersDetailAPIView(APIView):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def get_object(self,pk):
+        return get_object_or_404(User,pk=pk)
+    
+    def delete(self,pk):
+        user = self.get_object(pk=pk)
+        user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
     
     
 class UserUpdateAPIView(UsersDetailAPIView):
@@ -968,186 +976,6 @@ class GroupRemoveMemberAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         
-
-class GroupeConversationViewSet(viewsets.ModelViewSet):
-    serializer_class = GroupeConversationSerializer
-    permission_classes = [IsAuthenticated]
-    
-    def get_queryset(self):
-        return GroupeConversation.objects.filter(members=self.request.user)
-    
-    def perform_create(self, serializer):
-        group = serializer.save()
-        group.members.add(self.request.user)
-    
-    @action(detail=True, methods=["post"])
-    def add_member(self, request, pk=None):
-        group = self.get_object()
-        user_id = request.data.get("user_id")
-        
-        if not user_id:
-            return Response(
-                {"error": "user_id is required"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            user = User.objects.get(pk=user_id)
-            if user in group.members.all():
-                return Response(
-                    {"message": "User is already a member"}, 
-                    status=status.HTTP_200_OK
-                )
-            
-            group.members.add(user)
-            return Response(
-                {"message": "Member added successfully"}, 
-                status=status.HTTP_200_OK
-            )
-        except User.DoesNotExist:
-            return Response(
-                {"error": "User not found"}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
-    
-    @action(detail=True, methods=["post"])
-    def remove_member(self, request, pk=None):
-        group = self.get_object()
-        user_id = request.data.get("user_id")
-        
-        if not user_id:
-            return Response(
-                {"error": "user_id is required"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            user = User.objects.get(pk=user_id)
-            if user not in group.members.all():
-                return Response(
-                    {"error": "User is not a member of this group"}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            group.members.remove(user)
-            return Response(
-                {"message": "Member removed successfully"}, 
-                status=status.HTTP_200_OK
-            )
-        except User.DoesNotExist:
-            return Response(
-                {"error": "User not found"}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
-    
-    @action(detail=True, methods=["get"])
-    def members(self, request, pk=None):
-        group = self.get_object()
-        
-        # Check if user is a member
-        if request.user not in group.members.all():
-            return Response(
-                {"error": "You are not a member of this group"}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        members = group.members.all()
-        member_data = [
-            {
-                "id": member.id,
-                "username": member.username,
-                "email": member.email
-            }
-            for member in members
-        ]
-        
-        return Response({"members": member_data})
-    
-    @action(detail=True, methods=["get"], url_path='messages')
-    def messages(self, request, pk=None):
-        group = self.get_object()
-        
-        # Check if user is a member
-        if request.user not in group.members.all():
-            return Response(
-                {"error": "You are not a member of this group"}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        since_id = request.query_params.get("since_id", 0)
-        try:
-            since_id = int(since_id)
-        except (ValueError, TypeError):
-            since_id = 0
-        
-        # Get messages since the specified ID - order by ID for consistent pagination
-        messages_query = group.messages.filter(id__gt=since_id).order_by("id")
-        
-        # Limit the number of messages returned to prevent overload
-        limit = request.query_params.get("limit", 50)
-        try:
-            limit = int(limit)
-            if limit > 100:  # Maximum limit
-                limit = 100
-        except (ValueError, TypeError):
-            limit = 50
-        
-        messages = messages_query[:limit]
-        
-        serializer = GroupMessageSerializer(messages, many=True)
-        return Response(serializer.data)
-    
-    @action(detail=True, methods=["post"], url_path='send_message')
-    def send_message(self, request, pk=None):
-        group = self.get_object()
-        
-        # Check if user is a member
-        if request.user not in group.members.all():
-            return Response(
-                {"error": "You are not a member of this group"}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        content = request.data.get("content", "").strip()
-        if not content:
-            return Response(
-                {"error": "Message content is required"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Create the message
-        message = GroupMessage.objects.create(
-            group=group,
-            sender=request.user,
-            content=content
-        )
-        
-        serializer = GroupMessageSerializer(message)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    
-    @action(detail=True, methods=["post"])
-    def mark_messages_read(self, request, pk=None):
-        group = self.get_object()
-        
-        # Check if user is a member
-        if request.user not in group.members.all():
-            return Response(
-                {"error": "You are not a member of this group"}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        message_ids = request.data.get("message_ids", [])
-        if not message_ids:
-            return Response(
-                {"error": "message_ids are required"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Update read status for messages
-        return Response(
-            {"message": f"Marked {len(message_ids)} messages as read"}
-        )
-
 class ConversationViewSet(viewsets.ModelViewSet):
     serializer_class = ConversationSerializer
     permission_classes = [IsAuthenticated]
@@ -1258,7 +1086,14 @@ class ReportsAPIView(APIView):
 
     def get(self, request):
         reports = Reports.objects.all()
-        serializer = ReportsListSerializer(reports, many=True)
+        unique_reports = []
+        seen_ids = set()
+
+        for report in reports:
+            if report.post_reported.id not in seen_ids:
+                unique_reports.append(report)
+                seen_ids.add(report.post_reported.id)
+        serializer = ReportsListSerializer(unique_reports, many=True)
         return Response(serializer.data)
     
     def post(self, request):

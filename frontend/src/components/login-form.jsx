@@ -118,7 +118,6 @@ export function LoginForm({ className, ...props }) {
       const userFromToken = parseJwt(localStorage.getItem('access_token'));
       localStorage.setItem("user", JSON.stringify(userFromToken)); 
       const user = JSON.parse(localStorage.getItem("user"));
-console.log("User after login:", user.user_id);
 
       setTimeout(() => {
         navigate("/");

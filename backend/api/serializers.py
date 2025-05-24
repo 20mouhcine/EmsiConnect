@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Token,Posts, Commentaire, Likes,SavedPost,Ressources,Groupe,Message,Conversation,GroupeConversation,GroupMessage,Reports
+from .models import User, Token,Posts, Commentaire, Likes,SavedPost,Ressources,Groupe,Message,Conversation,Reports
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -155,20 +155,6 @@ class ConversationSerializer(serializers.ModelSerializer):
             return 0
         return obj.messages.filter(read=False).exclude(sender=user).count()
     
-class GroupMessageSerializer(serializers.ModelSerializer):
-    sender = UserSerializer(read_only=True)
-
-    class Meta:
-        model = GroupMessage
-        fields = ["id", "sender", "content", "timestamp"]
-
-class GroupeConversationSerializer(serializers.ModelSerializer):
-    members = UserSerializer(many=True, read_only=True)
-    messages = GroupMessageSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = GroupeConversation
-        fields = ["id", "name", "members", "messages", "created_at"]
 
 class ReportsCreateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -177,7 +163,12 @@ class ReportsCreateSerializer(serializers.ModelSerializer):
 
 class ReportsListSerializer(serializers.ModelSerializer):
     post_reported = PostsSerializer(read_only=True)
-    
+    user_reported = UserSerializer(read_only=True)
+    reports_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Reports
-        fields = ["id", "user_reported", "post_reported", "cause"]
+        fields = ["id", "user_reported", "post_reported", "cause", "reports_count"]
+
+    def get_reports_count(self, obj):
+        return Reports.objects.filter(post_reported=obj.post_reported).count()

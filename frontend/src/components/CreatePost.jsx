@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { toast } from "sonner"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import axios from "axios"
 import api from "@/lib/axios"
 
@@ -21,8 +21,18 @@ function CreatePost({ onPostCreated }) {
     const [selectedFile, setSelectedFile] = useState(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const user = JSON.parse(localStorage.getItem("user"));
-    const currentUser = api.get(`/users/${user.user_id}/`).data;
+    const [currentUser,setCurrentUser] = useState({})
 
+
+    const fetchUser = async ()=>{
+        try{
+            const response = await api.get(`/users/${user.user_id}`);
+            setCurrentUser(response.data)
+        }catch(error){
+            console.error(error)
+        }
+
+    }
     const handleFileChange = (e) => {
         if (e.target.files[0]) {
             setSelectedFile(e.target.files[0]);
@@ -70,7 +80,12 @@ function CreatePost({ onPostCreated }) {
             setIsSubmitting(false);
         }
     };
+    useEffect(()=>{
+        fetchUser();
+    },[]);
     const avatarFallback = user?.username?.substring(0, 2).toUpperCase();
+
+
         return (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -78,9 +93,9 @@ function CreatePost({ onPostCreated }) {
                     <Button variant="outline" className="w-full h-auto flex justify-between cursor-text">
                         <div className="flex items-center justify-between">
                             <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
-                                <AvatarImage src = {user?.profile_picture?.startsWith("http")
+                                <AvatarImage src = {currentUser?.profile_picture?.startsWith("http")
                     ? user.profile_picture
-                    : `http://127.0.0.1:8000${user?.profile_picture}`
+                    : `http://127.0.0.1:8000${currentUser?.profile_picture}`
                 } />
                                 <AvatarFallback>{avatarFallback}</AvatarFallback>
                             </Avatar>

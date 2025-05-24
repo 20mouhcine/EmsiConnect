@@ -123,19 +123,6 @@ class Conversation(models.Model):
     
     def __str__(self):
         return f"Conversation between {self.initiator.username} and {self.receiver.username}"
-    
-class GroupeConversation(models.Model):
-    name = models.CharField(max_length=255, blank=True) 
-    participants = models.ManyToManyField(User, related_name="conversations")
-    is_group = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-class GroupMessage(models.Model):
-    group = models.ForeignKey(GroupeConversation, on_delete=models.CASCADE, related_name="messages")
-    sender = models.ForeignKey(User, on_delete=models.CASCADE)
-    content = models.TextField()
-    timestamp = models.DateTimeField(auto_now_add=True)
-    read_by = models.ManyToManyField(User, related_name="read_group_messages", blank=True)
 
 
 class Message(models.Model):
@@ -157,6 +144,8 @@ class Reports(models.Model):
     choices = [
         ("false_news", "Désinformation ou fausses nouvelles"),
         ("spam", "Spam ou arnaques"),
-        ("identity_theft", "Usurpation d'identité ou faux comptes")
+        ("identity_theft", "Usurpation d'identité ou faux comptes"),
+        ("inappropriate_content","Contenu inapproprié"),
+        ("other","Autre")
     ]
     cause = models.CharField(max_length=255, choices=choices, default="false_news")

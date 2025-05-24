@@ -1,6 +1,6 @@
 import { formatDistanceToNow } from "date-fns";
 import fr from "date-fns/locale/fr";
-import { MessageCircle, Bookmark, MoreHorizontal, ThumbsUp, Send,Trash2 } from "lucide-react";
+import { MessageCircle, Bookmark, MoreHorizontal, ThumbsUp, Send, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -9,13 +9,31 @@ import { useState, useEffect } from "react";
 import api from "@/lib/axios";
 import { Drawer, DrawerClose, DrawerContent, DrawerFooter, DrawerHeader, DrawerTitle, DrawerDescription, DrawerTrigger } from "@/components/ui/drawer";
 import { Input } from "./ui/input";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import CommentCard from "./commentCard";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const PostCard = ({ post }) => {
+  const navigate = useNavigate()
   const { theme } = useTheme();
   const isDarkTheme = theme === "dark";
   const [liked, setLiked] = useState(false);
@@ -26,18 +44,42 @@ const PostCard = ({ post }) => {
   const [commentCount, setCommentCount] = useState(post.num_comments || 0);
   const [content, setContent] = useState("");
   const [comments, setComments] = useState([]);
+  const [currentUser, setCurrentUser] = useState({});
+  const [isReportAlertOpen, setIsReportAlertOpen] = useState(false);
+  const [reportCause, setReportCause] = useState("");
+  const [isReporting, setIsReporting] = useState(false);
+
+  const user = JSON.parse(localStorage.getItem("user"))
+
+  // Report causes options
+  const reportCauses = [
+    { value: "false_news", label: "Désinformation ou fausses nouvelles" },
+    { value: "spam", label: "Spam ou arnaques" },
+    { value: "identity_theft", label: "Usurpation d'identité ou faux comptes" },
+    { value: "inappropriate_content", label: "Contenu inapproprié" },
+    { value: "other", label: "Autre" }
+  ];
+
+  const fetchUser = async () => {
+    try {
+      const response = await api.get(`/users/${user.user_id}`);
+      setCurrentUser(response.data);
+    } catch (error) {
+      console.error("error fetching user", error);
+    }
+  }
 
   // Media handling
   const mediaUrl = post.media?.startsWith("http")
     ? post.media
     : `http://127.0.0.1:8000${post.media}`;
-      const getImageUrl = (mediaPath) => {
+  
+  const getImageUrl = (mediaPath) => {
     if (!mediaPath) return "";
     return mediaPath.startsWith("http")
       ? mediaPath
       : `http://127.0.0.1:8000${mediaPath}`;
   };
-
 
   const getFileType = (url) => {
     if (!url) return null;
@@ -95,25 +137,40 @@ const PostCard = ({ post }) => {
       )
     );
   };
-  const handleCommentCreated = (createdComment) =>{
+
+  const handleCommentCreated = (createdComment) => {
     setComments((prevComments) =>
-    [createdComment,...prevComments]);
+      [createdComment, ...prevComments]);
     toast.success("Commentaire crée avec succes.")
   }
- const handleReport = async () => {
-    try {
-        const reportData = {
-            user_reported: JSON.parse(localStorage.getItem("user")).user_id, 
-            post_reported: post.id, 
-            cause: "false_news"
-        };
-        const response = await api.post(`/reports/`, reportData);
-        console.log(response);
-    } catch (error) {
-        console.error(error);
-    }
-}
 
+  const handleReport = async () => {
+    if (!reportCause) {
+      toast.error("Veuillez sélectionner une raison pour le signalement.");
+      return;
+    }
+
+    setIsReporting(true);
+    try {
+      const reportData = {
+        user_reported: JSON.parse(localStorage.getItem("user")).user_id,
+        post_reported: post.id,
+        cause: reportCause
+      };
+      
+      const response = await api.post('/reports/', reportData);
+      console.log(response);
+      
+      toast.success("Publication signalée avec succès.");
+      setIsReportAlertOpen(false);
+      setReportCause(""); // Reset the report cause
+    } catch (error) {
+      console.error(error);
+      toast.error("Erreur lors du signalement. Veuillez réessayer.");
+    } finally {
+      setIsReporting(false);
+    }
+  };
 
   const handleCommentDeleted = (commentId) => {
     setComments((prevComments) =>
@@ -131,13 +188,18 @@ const PostCard = ({ post }) => {
       }
     };
     fetchComments();
+    fetchUser();
   }, [post.id]);
 
   const deletePost = async () => {
     try {
       await api.delete(`/posts/${post.id}/delete/`);
       toast.success("Post deleted successfully.");
-      window.location.reload();
+      if (window.location === "/") {
+        window.location.reload();
+      } else {
+        navigate(-1);
+      }
     } catch (error) {
       console.error("Error deleting post:", error);
       toast.error("Failed to delete post. Please try again.");
@@ -198,7 +260,6 @@ const PostCard = ({ post }) => {
       );
       setCommentCount(response.data.num_comments);
       handleCommentCreated(response.data);
-    setContent("");
       setContent("");
     } catch (error) {
       console.error("Error submitting comment:", error);
@@ -248,10 +309,10 @@ const PostCard = ({ post }) => {
                 const storedUser = JSON.parse(localStorage.getItem("user"));
                 const currentPath = window.location.pathname;
                 const isOwner = currentPath === "/profile/" || currentPath === `/profile/${storedUser?.user_id}`;
-                return isOwner ? (
+                return isOwner || currentUser.role === "admin" ? (
                   <>
                     <DropdownMenuItem onClick={deletePost}>
-                      <Trash2 className="text-red-500"/><span className="text-red-500">Supprimer</span>
+                      <Trash2 className="text-red-500" /><span className="text-red-500">Supprimer</span>
                     </DropdownMenuItem>
                   </>
                 ) : (
@@ -259,13 +320,16 @@ const PostCard = ({ post }) => {
                     <DropdownMenuItem onClick={handleSave}>
                       {saved ? "Unsave Post" : "Save Post"}
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleReport}>Report</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setIsReportAlertOpen(true) }}>
+                      Signaler
+                    </DropdownMenuItem>
                   </>
                 );
               })()}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        
         <p className="mb-3 sm:mb-4 text-sm sm:text-base">{post.contenu_texte}</p>
         
         {mediaUrl && (
@@ -287,7 +351,7 @@ const PostCard = ({ post }) => {
                 className="w-full object-cover max-h-96"
                 loading="lazy"
               />
-            ):null}
+            ) : null}
           </div>
         )}
 
@@ -367,6 +431,49 @@ const PostCard = ({ post }) => {
           </Button>
         </div>
       </div>
+
+      {/* Report Alert Dialog */}
+      <AlertDialog open={isReportAlertOpen} onOpenChange={setIsReportAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Signaler cette publication</AlertDialogTitle>
+            <AlertDialogDescription>
+              Pourquoi signalez-vous cette publication ? Veuillez sélectionner une raison.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="py-4">
+            <Select value={reportCause} onValueChange={setReportCause}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner une raison" />
+              </SelectTrigger>
+              <SelectContent>
+                {reportCauses.map((cause) => (
+                  <SelectItem key={cause.value} value={cause.value}>
+                    {cause.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setReportCause("");
+              setIsReportAlertOpen(false);
+            }}>
+              Annuler
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-500 hover:bg-red-600"
+              onClick={handleReport}
+              disabled={!reportCause || isReporting}
+            >
+              {isReporting ? "Signalement..." : "Signaler"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };

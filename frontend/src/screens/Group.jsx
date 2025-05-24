@@ -5,7 +5,6 @@ import {
   UserMinus,
   AlertCircle,
 } from "lucide-react";
-import Collapsible from "@/components/ui/collabsible";
 
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -679,10 +678,6 @@ const MemberCard = ({ member, isAdmin, groupAdmin, onRemoveMember }) => {
                     </div>
                   </TabsContent>
                 </Tabs>
-                <Collapsible
-                groupId={group.id}
-                currentUserId={currentUser.id}
-                token={localStorage.getItem("access_token")}/>
               </div>
             </div>
           </div>

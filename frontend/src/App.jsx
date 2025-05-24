@@ -13,7 +13,7 @@ import GroupManager from "./screens/GroupManager";
 import Profile  from "./screens/Profile";
 import Chat from "./screens/Chat";
 import Group from "./screens/Group";
-
+import Reports from "./screens/Reports";
 function App() {
   return (
     <ThemeProvider>    
@@ -33,6 +33,7 @@ function App() {
           <Route path="/chat" element={<Chat/>}/>
           <Route path="/group/:id" element={<Group/>}/>
           <Route path="/chat/:selectedUser" element={<Chat />} />
+          <Route path="/reports" element={<Reports/>} />
 
         </Route>
       </Routes>

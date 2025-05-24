@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { House, User, GraduationCap, LibraryBig, Users } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { House, User, CircleAlert, LibraryBig, Users } from "lucide-react";
 import { useTheme } from "@/components/theme-provider.jsx";
 import {Link} from "react-router-dom";
 import api from "@/lib/axios";
@@ -8,12 +8,24 @@ const SideBar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { theme } = useTheme();
   const isDarkTheme = theme === 'dark';
+  const [currentUser,setCurrentUser] = useState({});
   const user = JSON.parse(localStorage.getItem("user"))
 
-  const currentUser = api.get(`/users/${user.user_id}`);
+  const fetchUser = async ()=>{
+    try{
+      
+      const response = await api.get(`/users/${user.user_id}`);
+      setCurrentUser(response.data);
+    }catch(error){
+      console.error("error fetching user",error);
+    }
+  }
   const toggleSidebar = () => {
     setIsOpen(!isOpen);
   };
+  useEffect(()=>{
+    fetchUser();
+  },[]);
 
   return (
       <>
@@ -65,15 +77,16 @@ const SideBar = () => {
                   </Link>
               </li>
               
-              (currentUser.role ==="admin"
-
-              )
+              {currentUser.role === "admin" &&(
               <li className="flex items-center transition-all ease-in-out delay-0 hover:text-green-500 hover:bg-green-400/25 p-1 rounded-lg cursor-pointer">
-                <Users />
-                  <Link to="/groups" className="block py-2 px-4">
-                  Groupes
+                <CircleAlert />
+                  <Link to="/reports" className="block py-2 px-4">
+                  Publications Signalées
                   </Link>
               </li>
+
+              )
+              }
             </ul>
           </nav>
         </div>
