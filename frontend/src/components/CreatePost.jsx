@@ -71,9 +71,7 @@ function CreatePost({ onPostCreated }) {
         }
     };
     const avatarFallback = user?.username?.substring(0, 2).toUpperCase();
-    console.log(user)
-
-    return (
+        return (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
                 <div className="flex items-center gap-2 cursor-pointer">

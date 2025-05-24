@@ -100,6 +100,20 @@ const PostCard = ({ post }) => {
     [createdComment,...prevComments]);
     toast.success("Commentaire crée avec succes.")
   }
+ const handleReport = async () => {
+    try {
+        const reportData = {
+            user_reported: JSON.parse(localStorage.getItem("user")).user_id, 
+            post_reported: post.id, 
+            cause: "false_news"
+        };
+        const response = await api.post(`/reports/`, reportData);
+        console.log(response);
+    } catch (error) {
+        console.error(error);
+    }
+}
+
 
   const handleCommentDeleted = (commentId) => {
     setComments((prevComments) =>
@@ -245,7 +259,7 @@ const PostCard = ({ post }) => {
                     <DropdownMenuItem onClick={handleSave}>
                       {saved ? "Unsave Post" : "Save Post"}
                     </DropdownMenuItem>
-                    <DropdownMenuItem>Report</DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleReport}>Report</DropdownMenuItem>
                   </>
                 );
               })()}

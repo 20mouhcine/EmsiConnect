@@ -116,7 +116,6 @@ export function LoginForm({ className, ...props }) {
       localStorage.setItem('access_token', access_token);
       localStorage.setItem("refresh_token", response.data.refresh);
       const userFromToken = parseJwt(localStorage.getItem('access_token'));
-      console.log("User from token:", userFromToken);
       localStorage.setItem("user", JSON.stringify(userFromToken)); 
       const user = JSON.parse(localStorage.getItem("user"));
 console.log("User after login:", user.user_id);

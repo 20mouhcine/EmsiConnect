@@ -40,13 +40,22 @@ urlpatterns = [
     path('ressources/<int:pk>/', views.RessourceAPIView.as_view(), name='ressources-delete'),
     path('posts/search/', views.search_posts, name='search_posts'),
     path('users/search/', views.search_users, name='search_users'),
-    path('groups/', views.GroupAPIView.as_view(), name='group-list'),
-    path('groups/search/', views.GroupAPIView.as_view(), name='group-search'),
-    path('groups/<int:pk>/', views.GroupAPIView.as_view(), name='group-detail'),
-    path('groups/<int:pk>/add-members/', views.GroupAddMembersAPIView.as_view(), name='group-add-members'),
-    path('groups/<int:pk>/posts/', views.GroupDetailAPIView.as_view(), name='group-posts'),
+
+
+
+        path('groups/', views.GroupAPIView.as_view(), name='group-list'),
+        path('groups/search/', views.GroupAPIView.as_view(), name='group-search'),
+        path('groups/<int:pk>/', views.GroupAPIView.as_view(), name='group-detail'),
+        path('groups/<int:pk>/add-members/', views.GroupAddMembersAPIView.as_view(), name='group-add-members'),
+        path('groups/<int:pk>/posts/', views.GroupDetailAPIView.as_view(), name='group-posts'),
+        path('groups/<int:pk>/posts/add', views.GroupPostCreateAPIView.as_view(), name='group-posts-add'),
         path('groups/<int:pk>/members/', views.GroupMemberAPIView.as_view(), name='group-members'),    
-    path('groups/<int:pk>/remove-member/',views.GroupRemoveMemberAPIView.as_view(), name='group-remove-member'),
+        path('groups/<int:pk>/remove-member/',views.GroupRemoveMemberAPIView.as_view(), name='group-remove-member'),
+
+
+        path('reports/',views.ReportsAPIView.as_view(),name='reports'),
+
+
     path('conversation/<int:conversation_pk>/messages/', 
          views.MessageViewSet.as_view({'get': 'list', 'post': 'create'}), 
          name='conversation-messages'),

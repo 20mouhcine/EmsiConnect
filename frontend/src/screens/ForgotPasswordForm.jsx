@@ -38,7 +38,7 @@ export function ForgotPasswordForm({ className, ...props }) {
   async function checkUser(email) {
     try {
       const response = await axios.post(
-        "http://127.0.0.1:8000/api/checkuser",
+        "http://127.0.0.1:8000/api/checkuser/",
         { email: email }
       );
       return response.data.success;
@@ -80,7 +80,7 @@ export function ForgotPasswordForm({ className, ...props }) {
       }
       
       // Send password reset email
-      const response = await axios.post("http://127.0.0.1:8000/api/forgotPassword", {
+      const response = await axios.post("http://127.0.0.1:8000/api/reset-password/", {
         email: email,
 
         user_id:id,

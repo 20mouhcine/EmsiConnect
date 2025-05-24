@@ -4,6 +4,7 @@ import SideBar from "@/components/SideBar";
 import api from "@/lib/axios";
 import { MoreHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -151,7 +152,7 @@ const GroupForm = memo(
     editingGroup,
     setDialogOpen,
   }) => {
-        const { theme } = useTheme();
+    const { theme } = useTheme();
     const isDarkTheme = theme === "dark";
     return (
       <form onSubmit={handleSubmit} className={``}>
@@ -225,8 +226,8 @@ const GroupManager = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState(null);
   const [user] = useState(() => JSON.parse(localStorage.getItem("user")));
-        const { theme } = useTheme();
-    const isDarkTheme = theme === "dark";
+  const { theme } = useTheme();
+  const isDarkTheme = theme === "dark";
   // Form state
   const [formData, setFormData] = useState({
     nom: "",
@@ -349,8 +350,7 @@ const GroupManager = () => {
       e.preventDefault();
 
       try {
-
-          await api.post("/groups/", formData);
+        await api.post("/groups/", formData);
 
         fetchGroups();
 
@@ -361,7 +361,7 @@ const GroupManager = () => {
         setError("Failed to save group. Please try again.");
       }
     },
-    [ formData, fetchGroups, resetForm]
+    [formData, fetchGroups, resetForm]
   );
 
   const handleDelete = async (groupId) => {
@@ -455,14 +455,29 @@ const GroupManager = () => {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {groups.map((group) => (
-                    <GroupCard
+                    <motion.div
                       key={group.id}
-                      group={group}
-                      user={user}
-                      openDialog={openDialog}
-                      handleDelete={handleDelete}
-                      availableUsers={availableUsers}
-                    />
+                      variants={{
+                        hidden: {opacity:0},
+                        show:{
+                            opacity:1,
+                            transition:{
+                              staggerChildren:0.25,
+                            },
+                        },
+                      }}
+                      initial="hidden"
+                      animate="show"
+                    >
+                      <GroupCard
+                        key={group.id}
+                        group={group}
+                        user={user}
+                        openDialog={openDialog}
+                        handleDelete={handleDelete}
+                        availableUsers={availableUsers}
+                      />
+                    </motion.div>
                   ))}
                 </div>
               )}

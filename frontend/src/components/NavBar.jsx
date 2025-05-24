@@ -312,9 +312,7 @@ const NavBar = () => {
                     >
                       Profile
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="cursor-pointer">
-                      Paramètres
-                    </DropdownMenuItem>
+                
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       className="cursor-pointer text-red-600 hover:bg-red-50"

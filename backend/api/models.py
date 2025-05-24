@@ -45,6 +45,19 @@ def validate_file_extension(value):
     if ext not in allowed_extensions:
         raise ValidationError('Unsupported file format. Allowed formats: images (jpg, jpeg, png, gif) and videos (mp4, mov, avi).')
     
+
+class Groupe(models.Model):
+    admin = models.ForeignKey(User, on_delete=models.CASCADE,null=True, related_name='administered_groups')
+    nom = models.CharField(max_length=50, null=True)
+    users = models.ManyToManyField('User',related_name='member_groups')
+    profile_picture = models.ImageField(null=True,upload_to='groups/', blank=True)
+
+    bio = models.CharField(max_length=500, null=True)
+    def delete(self, *args, **kwargs):
+        self.users.clear()
+        super().delete(*args, **kwargs)
+
+
 class Posts(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     date_creation = models.DateTimeField(default=timezone.now)
@@ -56,8 +69,8 @@ class Posts(models.Model):
             blank=True,
             validators=[validate_file_extension]
         )
-    def __str__(self):
-        return self.name
+    groupe = models.ForeignKey(Groupe, on_delete=models.CASCADE, null=True)
+
 
     def num_comments(self):
         return self.comments.count()
@@ -98,15 +111,6 @@ class Ressources(models.Model):
     media = models.FileField(null=True,upload_to='ressources/', blank=True)
 
 
-class Groupe(models.Model):
-    admin = models.ForeignKey(User, on_delete=models.CASCADE,null=True, related_name='administered_groups')
-    nom = models.CharField(max_length=50, null=True)
-    users = models.ManyToManyField('User',related_name='member_groups',null=True)
-    profile_picture = models.ImageField(null=True,upload_to='groups/', blank=True)
-    bio = models.CharField(max_length=500, null=True)
-    def delete(self, *args, **kwargs):
-        self.users.clear()
-        super().delete(*args, **kwargs)
 
     
 class Conversation(models.Model):
@@ -119,6 +123,19 @@ class Conversation(models.Model):
     
     def __str__(self):
         return f"Conversation between {self.initiator.username} and {self.receiver.username}"
+    
+class GroupeConversation(models.Model):
+    name = models.CharField(max_length=255, blank=True) 
+    participants = models.ManyToManyField(User, related_name="conversations")
+    is_group = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class GroupMessage(models.Model):
+    group = models.ForeignKey(GroupeConversation, on_delete=models.CASCADE, related_name="messages")
+    sender = models.ForeignKey(User, on_delete=models.CASCADE)
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    read_by = models.ManyToManyField(User, related_name="read_group_messages", blank=True)
 
 
 class Message(models.Model):
@@ -133,3 +150,13 @@ class Message(models.Model):
     
     class Meta:
         ordering = ['timestamp']
+
+class Reports(models.Model):
+    user_reported = models.ForeignKey(User, on_delete=models.CASCADE)
+    post_reported = models.ForeignKey(Posts,on_delete=models.CASCADE)
+    choices = [
+        ("false_news", "Désinformation ou fausses nouvelles"),
+        ("spam", "Spam ou arnaques"),
+        ("identity_theft", "Usurpation d'identité ou faux comptes")
+    ]
+    cause = models.CharField(max_length=255, choices=choices, default="false_news")

@@ -5,8 +5,8 @@ from django.core.mail import send_mail
 from rest_framework import status, permissions,viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import User, Token, Posts, Likes, Commentaire,SavedPost,Ressources,Groupe,VerificationToken,Message,Conversation
-from .serializers import UserSerializer,PostsSerializer, MyTokenObtainPairSerializer,CommentsSerializer,SavedPostSerializer,RessourceSerializer,GroupeSerializer,MessageSerializer,ConversationSerializer
+from .models import User, Token, Posts, Likes, Commentaire,SavedPost,Ressources,Groupe,VerificationToken,Message,Conversation,GroupMessage,GroupeConversation,Reports
+from .serializers import UserSerializer,PostsSerializer,TokenSerializer, MyTokenObtainPairSerializer,CommentsSerializer,SavedPostSerializer,RessourceSerializer,GroupeSerializer,MessageSerializer,ConversationSerializer,GroupMessageSerializer,GroupeConversationSerializer,ReportsListSerializer,ReportsCreateSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.conf import settings
 from django.shortcuts import get_object_or_404
@@ -19,6 +19,7 @@ import uuid
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.utils import timezone
+from django.db import transaction
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 import random
@@ -93,46 +94,46 @@ class ResetPasswordView(APIView):
                 )
 
 
-# class ForgotPasswordView(APIView):
-#     def post(self, request):
-#         email = request.data["email"]
-#         user = User.objects.get(email=email)
-#         created_at = timezone.now()
-#         expires_at = created_at + timedelta(hours=1)
-#         salt = uuid.uuid4().hex
-#         token = hashlib.sha512((str(user.id)+user.password + created_at.isoformat() + salt).encode('utf-8')).hexdigest()
-#         token_obj = {
-#             "token":token,
-#             "created_at": created_at,
-#             "expires_at": expires_at,
-#             "user_id": user.id,                    
-#         }
-#         serializer = TokenSerializer(data=token_obj)
-#         if serializer.is_valid():
-#             serializer.save()
-#             subject = "Forgort Password Link"
-#             content = mail_template("We have received a request to reset your password. Please reset your password using the link below.",
-#                 f"{URL}/resetPassword?id={user.id}&token={token}",
-#                 "Reset Password",)
-#             send_mail(subject,message=content, from_email=settings.EMAIL_HOST_USER, recipient_list=[email], html_message=content)
-#             return Response(
-#                 {
-#                     "success": True,
-#                     "message": "A password reset link has been sent to your email.",
-#                 },
-#                 status=status.HTTP_200_OK,
-#             )
-#         else:
-#             error_msg = ""
-#             for key in serializer.errors:
-#                 error_msg += f"{key}: {serializer.errors[key][0]}"
-#             return Response(
-#                 {
-#                     "success": False,
-#                     "message": error_msg,
-#                 },
-#                 status=status.HTTP_200_OK,
-#             )
+class ForgotPasswordView(APIView):
+    def post(self, request):
+        email = request.data["email"]
+        user = User.objects.get(email=email)
+        created_at = timezone.now()
+        expires_at = created_at + timedelta(hours=1)
+        salt = uuid.uuid4().hex
+        token = hashlib.sha512((str(user.id)+user.password + created_at.isoformat() + salt).encode('utf-8')).hexdigest()
+        token_obj = {
+            "token":token,
+            "created_at": created_at,
+            "expires_at": expires_at,
+            "user_id": user.id,                    
+        }
+        serializer = TokenSerializer(data=token_obj)
+        if serializer.is_valid():
+            serializer.save()
+            subject = "Forgort Password Link"
+            content = mail_template("We have received a request to reset your password. Please reset your password using the link below.",
+                f"{URL}/resetPassword?id={user.id}&token={token}",
+                "Reset Password",)
+            send_mail(subject,message=content, from_email=settings.EMAIL_HOST_USER, recipient_list=[email], html_message=content)
+            return Response(
+                {
+                    "success": True,
+                    "message": "A password reset link has been sent to your email.",
+                },
+                status=status.HTTP_200_OK,
+            )
+        else:
+            error_msg = ""
+            for key in serializer.errors:
+                error_msg += f"{key}: {serializer.errors[key][0]}"
+            return Response(
+                {
+                    "success": False,
+                    "message": error_msg,
+                },
+                status=status.HTTP_200_OK,
+            )
         
 class VerifyEmailView(APIView):
     def post(self, request):
@@ -759,9 +760,10 @@ class GroupDetailAPIView(APIView):
     def get(self, request, pk):
         group = self.get_object(pk)
         
-        # Check if user is a member or admin, or if the group is public
+        posts = Posts.objects.filter(groupe=group).order_by("-date_creation")
+        
         if request.user == group.admin or request.user in group.users.all():
-            serializer = GroupeSerializer(group)
+            serializer = PostsSerializer(posts,many=True)
             return Response(serializer.data)
         
         return Response(
@@ -769,6 +771,65 @@ class GroupDetailAPIView(APIView):
             status=status.HTTP_403_FORBIDDEN
         )
 
+        
+class GroupPostCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get_object(self,pk):
+        return get_object_or_404(Groupe,pk=pk)
+
+    def post(self, request, pk):
+        """Create a new post in the group"""
+        group = self.get_object(pk)
+        
+        if not (request.user == group.admin or request.user in group.users.all()):
+            return Response(
+                {"detail": "You must be a member to post in this group."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        contenu_texte = request.data.get('contenu_texte', '').strip()
+        media = request.FILES.get('media')
+        
+        if not contenu_texte and not media:
+            return Response(
+                {"detail": "Post must have content or media."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            with transaction.atomic():
+                # Create the post data with correct field names
+                post_data = {
+                    'contenu_texte': contenu_texte,
+                    'groupe': group.id
+                }
+                
+                # Add media if provided
+                if media:
+                    post_data['media'] = media
+                
+                post_serializer = PostsSerializer(data=post_data)
+                if post_serializer.is_valid():
+                    # Pass the user directly to save method
+                    post = post_serializer.save(user=request.user)
+                    
+                    response_serializer = PostsSerializer(post)
+                    return Response(
+                        response_serializer.data,
+                        status=status.HTTP_201_CREATED
+                    )
+                else:
+                    return Response(
+                        post_serializer.errors,
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                    
+        except Exception as e:
+            return Response(
+                {"detail": f"Error creating post: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )       
+    
 class GroupMemberAPIView(APIView):
     """
     API view for managing group members
@@ -906,6 +967,186 @@ class GroupRemoveMemberAPIView(APIView):
                 {"detail": "User not found."}, 
                 status=status.HTTP_404_NOT_FOUND
             )
+        
+
+class GroupeConversationViewSet(viewsets.ModelViewSet):
+    serializer_class = GroupeConversationSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        return GroupeConversation.objects.filter(members=self.request.user)
+    
+    def perform_create(self, serializer):
+        group = serializer.save()
+        group.members.add(self.request.user)
+    
+    @action(detail=True, methods=["post"])
+    def add_member(self, request, pk=None):
+        group = self.get_object()
+        user_id = request.data.get("user_id")
+        
+        if not user_id:
+            return Response(
+                {"error": "user_id is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            user = User.objects.get(pk=user_id)
+            if user in group.members.all():
+                return Response(
+                    {"message": "User is already a member"}, 
+                    status=status.HTTP_200_OK
+                )
+            
+            group.members.add(user)
+            return Response(
+                {"message": "Member added successfully"}, 
+                status=status.HTTP_200_OK
+            )
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    @action(detail=True, methods=["post"])
+    def remove_member(self, request, pk=None):
+        group = self.get_object()
+        user_id = request.data.get("user_id")
+        
+        if not user_id:
+            return Response(
+                {"error": "user_id is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            user = User.objects.get(pk=user_id)
+            if user not in group.members.all():
+                return Response(
+                    {"error": "User is not a member of this group"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            group.members.remove(user)
+            return Response(
+                {"message": "Member removed successfully"}, 
+                status=status.HTTP_200_OK
+            )
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    @action(detail=True, methods=["get"])
+    def members(self, request, pk=None):
+        group = self.get_object()
+        
+        # Check if user is a member
+        if request.user not in group.members.all():
+            return Response(
+                {"error": "You are not a member of this group"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        members = group.members.all()
+        member_data = [
+            {
+                "id": member.id,
+                "username": member.username,
+                "email": member.email
+            }
+            for member in members
+        ]
+        
+        return Response({"members": member_data})
+    
+    @action(detail=True, methods=["get"], url_path='messages')
+    def messages(self, request, pk=None):
+        group = self.get_object()
+        
+        # Check if user is a member
+        if request.user not in group.members.all():
+            return Response(
+                {"error": "You are not a member of this group"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        since_id = request.query_params.get("since_id", 0)
+        try:
+            since_id = int(since_id)
+        except (ValueError, TypeError):
+            since_id = 0
+        
+        # Get messages since the specified ID - order by ID for consistent pagination
+        messages_query = group.messages.filter(id__gt=since_id).order_by("id")
+        
+        # Limit the number of messages returned to prevent overload
+        limit = request.query_params.get("limit", 50)
+        try:
+            limit = int(limit)
+            if limit > 100:  # Maximum limit
+                limit = 100
+        except (ValueError, TypeError):
+            limit = 50
+        
+        messages = messages_query[:limit]
+        
+        serializer = GroupMessageSerializer(messages, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=["post"], url_path='send_message')
+    def send_message(self, request, pk=None):
+        group = self.get_object()
+        
+        # Check if user is a member
+        if request.user not in group.members.all():
+            return Response(
+                {"error": "You are not a member of this group"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        content = request.data.get("content", "").strip()
+        if not content:
+            return Response(
+                {"error": "Message content is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create the message
+        message = GroupMessage.objects.create(
+            group=group,
+            sender=request.user,
+            content=content
+        )
+        
+        serializer = GroupMessageSerializer(message)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=["post"])
+    def mark_messages_read(self, request, pk=None):
+        group = self.get_object()
+        
+        # Check if user is a member
+        if request.user not in group.members.all():
+            return Response(
+                {"error": "You are not a member of this group"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        message_ids = request.data.get("message_ids", [])
+        if not message_ids:
+            return Response(
+                {"error": "message_ids are required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update read status for messages
+        return Response(
+            {"message": f"Marked {len(message_ids)} messages as read"}
+        )
 
 class ConversationViewSet(viewsets.ModelViewSet):
     serializer_class = ConversationSerializer
@@ -1010,3 +1251,24 @@ class MessageViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(message)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+
+class ReportsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        reports = Reports.objects.all()
+        serializer = ReportsListSerializer(reports, many=True)
+        return Response(serializer.data)
+    
+    def post(self, request):
+        serializer = ReportsCreateSerializer(data=request.data, context={"request": request})
+        if not serializer.is_valid():
+            print(f"Errors: {serializer.errors}")
+        
+        if serializer.is_valid():
+            report = serializer.save()
+            response_serializer = ReportsListSerializer(report)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
