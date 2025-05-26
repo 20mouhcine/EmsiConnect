@@ -15,11 +15,24 @@ import {
 } from "@/components/ui/popover";
 import ProfileEditForm from "@/components/ProfileEditForm";
 import { useParams } from "react-router-dom";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 const Profile = () => {
   const { theme } = useTheme();
   const isDarkTheme = theme === "dark";
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const [user, setUser] = useState(null);
   const [posts, setPosts] = useState([]);
@@ -27,11 +40,14 @@ const Profile = () => {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [currentUser,setCurrentUser] = useState({});
+  const storedUser = JSON.parse(localStorage.getItem("user"));
 
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
-      const storedUser = JSON.parse(localStorage.getItem("user"));
+  
 
       if (!storedUser || !storedUser.user_id) {
         console.warn("Utilisateur non connecté ou incomplet dans localStorage");
@@ -75,8 +91,28 @@ const Profile = () => {
       }
     };
 
+      const fetchUser  = async () =>{
+        try{
+          const response = await api.get(`/users/${storedUser.user_id}`);
+          setCurrentUser(response.data)
+        }catch(error){
+          console.error("error fetching user:",error);
+        }
+      }
     fetchData();
+    fetchUser();
   }, [id]);
+  const deleteUser = async () => {
+    try {
+
+      const response = await api.delete(`users/${id}/delete/`);
+      setIsAlertOpen(false);
+      toast.success("Utilisateur supprimé avec succes");
+      navigate(-1);
+    } catch (error) {
+      console.error("error deleting:", error);
+    }
+  };
 
   if (isLoading) {
     return <div className="text-center mt-20">Chargement du profil...</div>;
@@ -167,10 +203,7 @@ const Profile = () => {
 
                 {/* Modifier le profil visible seulement si propriétaire */}
                 {isOwner && (
-                  <Popover
-                    open={isPopoverOpen}
-                    onOpenChange={setIsPopoverOpen}
-                  >
+                  <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
@@ -187,7 +220,45 @@ const Profile = () => {
                     </PopoverContent>
                   </Popover>
                 )}
+                {currentUser.role === "admin" && (
+                 
+                      <Button
+                        variant="outline"
+                        className="flex items-center gap-1"
+                        onClick = {()=>setIsAlertOpen(true)}
+                      >
+                        <PenSquare size={16} />
+                        Supprimer
+                      </Button>
+                    
+                )}
               </div>
+              <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Supprimer cette Utilisateur
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Etes vous sure vouloir supprimer cet utilisateur.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+
+                  <AlertDialogFooter>
+                    <AlertDialogCancel
+                      onClick={() => {
+                        setIsAlertOpen(false);
+                      }}
+                    >
+                      Annuler
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-red-500 hover:bg-red-600"
+                      onClick={deleteUser}
+                    >Supprimer</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
 
               {/* Tabs */}
               <Tabs defaultValue="posts">
@@ -227,10 +298,10 @@ const Profile = () => {
                     {savedPosts.length > 0 ? (
                       <div className="space-y-6">
                         {savedPosts.map((savedPost) => (
-                          <PostCard 
-                            key={savedPost.id} 
-                            post={savedPost.post} 
-                            isSavedPost={true} 
+                          <PostCard
+                            key={savedPost.id}
+                            post={savedPost.post}
+                            isSavedPost={true}
                           />
                         ))}
                       </div>

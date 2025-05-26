@@ -22,6 +22,7 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('users/', views.UsersListAPIView.as_view(), name='users_list'),
     path('users/<int:pk>/', views.UsersDetailAPIView.as_view(), name='user_detail'),
+    path('users/<int:pk>/delete/', views.UserDeleteAPIView.as_view(), name='user_delete'),
     path('users/<int:pk>/update/', views.UserUpdateAPIView.as_view(), name='user_update'),
     path('posts/', views.PostsListAPIView.as_view(), name='posts_list'),
     path('posts/create/', views.PostsCreateAPIView.as_view(), name='posts_create'),
@@ -56,9 +57,22 @@ urlpatterns = [
         path('reports/',views.ReportsAPIView.as_view(),name='reports'),
 
 
-    path('conversation/<int:conversation_pk>/messages/', 
-         views.MessageViewSet.as_view({'get': 'list', 'post': 'create'}), 
+ path('conversation/<int:conversation_pk>/messages/', 
+         views.MessageViewSet.as_view({
+             'get': 'list', 
+             'post': 'create'
+         }), 
          name='conversation-messages'),
+         path('conversations/',views.ConversationViewSet.as_view({'get':'list'}),name='conversations-list'),
+    
+    # Individual message operations (delete)
+    path('conversation/<int:conversation_pk>/messages/<int:pk>/', 
+         views.MessageViewSet.as_view({
+             'delete': 'destroy'  # Fix: Use 'destroy' instead of 'delete'
+         }), 
+         name='conversation-message-detail'),
+    
+    # Conversation read status
     path('conversation/<int:conversation_pk>/read/', 
          views.ConversationViewSet.as_view({'post': 'read'}), 
          name='conversation-read'),

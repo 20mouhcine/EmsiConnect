@@ -341,10 +341,15 @@ class UsersDetailAPIView(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+    
+class UserDeleteAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
     def get_object(self,pk):
         return get_object_or_404(User,pk=pk)
     
-    def delete(self,pk):
+    def delete(self,request,pk):
+        print("pk = ",pk)
         user = self.get_object(pk=pk)
         user.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -979,6 +984,28 @@ class GroupRemoveMemberAPIView(APIView):
 class ConversationViewSet(viewsets.ModelViewSet):
     serializer_class = ConversationSerializer
     permission_classes = [IsAuthenticated]
+    def list(self, request, *args, **kwargs):
+
+        queryset = self.get_queryset()
+        
+        # Optional filtering
+        search = request.query_params.get('search', None)
+        if search:
+            queryset = queryset.filter(
+                Q(initiator__username__icontains=search) |
+                Q(receiver__username__icontains=search) |
+                Q(initiator__first_name__icontains=search) |
+                Q(receiver__first_name__icontains=search)
+            )
+        
+        # Pagination
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
     
     def get_queryset(self):
         return Conversation.objects.filter(
@@ -1046,6 +1073,29 @@ class MessageViewSet(viewsets.ModelViewSet):
     serializer_class = MessageSerializer
     permission_classes = [IsAuthenticated]
     
+    def get_object(self, pk=None):
+        # Fix: Add default parameter and proper error handling
+        if pk is None:
+            pk = self.kwargs.get('pk')
+        
+        # Get the conversation first to ensure user has access
+        conversation_pk = self.kwargs.get('conversation_pk')
+        if conversation_pk:
+            conversation = get_object_or_404(
+                Conversation, 
+                Q(initiator=self.request.user) | Q(receiver=self.request.user),
+                pk=conversation_pk
+            )
+            # Get message that belongs to this conversation
+            return get_object_or_404(Message, pk=pk, conversation=conversation)
+        else:
+            # Fallback: get message and check if user has access to its conversation
+            message = get_object_or_404(Message, pk=pk)
+            conversation = message.conversation
+            if conversation.initiator != self.request.user and conversation.receiver != self.request.user:
+                raise PermissionDenied("You don't have access to this message")
+            return message
+    
     def list(self, request, conversation_pk=None):
         conversation = get_object_or_404(
             Conversation, 
@@ -1079,6 +1129,23 @@ class MessageViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(message)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    def destroy(self, request, pk=None, conversation_pk=None):
+        # Fix: Use destroy method instead of delete, and add proper validation
+        message = self.get_object(pk)
+        
+        # Security check: only allow deletion of own messages
+        if message.sender != request.user:
+            return Response(
+                {"error": "You can only delete your own messages"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        message.delete()
+        return Response(
+            {"message": "Message deleted successfully"}, 
+            status=status.HTTP_200_OK
+        )
     
 
 class ReportsAPIView(APIView):
