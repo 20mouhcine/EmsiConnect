@@ -5,7 +5,7 @@ from django.core.mail import send_mail
 from rest_framework import status, permissions,viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import User, Token, Posts, Likes, Commentaire,SavedPost,Ressources,Groupe,VerificationToken,Message,Conversation,Reports
+from .models import User, Token, Posts, Likes, Commentaire,SavedPost,Ressources,Groupe,Message,Conversation,Reports
 from .serializers import UserSerializer,PostsSerializer,TokenSerializer, MyTokenObtainPairSerializer,CommentsSerializer,SavedPostSerializer,RessourceSerializer,GroupeSerializer,MessageSerializer,ConversationSerializer,ReportsListSerializer,ReportsCreateSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.conf import settings
@@ -22,7 +22,6 @@ from django.utils import timezone
 from django.db import transaction
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
-import random
 
 SALT = "8b4f6b2cc1868d75ef79e5cfb8779c11b6a374bf0fce05b485581bf4e1e25b96c8c2855015de8449"
 URL = "http://localhost:5173"
@@ -135,87 +134,7 @@ class ForgotPasswordView(APIView):
                 status=status.HTTP_200_OK,
             )
         
-class VerifyEmailView(APIView):
-    def post(self, request):
-        try:
-            email = request.data["email"]
-            user = User.objects.get(email=email)
-            
-            created_at = timezone.now()
-            expires_at = created_at + timedelta(hours=1)
-            salt = uuid.uuid4().hex
-            token = hashlib.sha512((str(user.id) + user.password + created_at.isoformat() + salt).encode('utf-8')).hexdigest()
-            
-            otp = str(random.randint(100000, 999999))  
-            
-            VerificationToken.objects.create(
-                user=user,
-                token=token,
-                otp=otp,
-                created_at=created_at,
-                expires_at=expires_at
-            )
-            
-            subject = "Email verification"
-            message = f"Hello {user.username},\n\nPlease use the following One Time Password to verify your email: {otp}"
-            html_message = f"""
-            <html>
-                <body>
-                    <h2>Email Verification</h2>
-                    <p>Hello {user.username},</p>
-                    <p>Please use the following One Time Password to verify your email:</p>
-                    <h1 style="color: #4CAF50;">{otp}</h1>
-                    <p>This OTP will expire in 1 hour.</p>
-                </body>
-            </html>
-            """
-            
-            send_mail(
-                subject=subject,
-                message=message,
-                from_email=settings.EMAIL_HOST_USER,
-                recipient_list=[email],
-                html_message=html_message
-            )
-            
-            return Response({"message": "Verification email sent successfully"}, status=200)
-            
-        except User.DoesNotExist:
-            return Response({"error": "User with this email does not exist"}, status=404)
-        except Exception as e:
-            return Response({"error": str(e)}, status=400)
-        
 
-class VerifyOTPView(APIView):
-    def post(self, request):
-        try:
-            email = request.data["email"]
-            otp = request.data["otp"]
-            
-            user = User.objects.get(email=email)
-            token = VerificationToken.objects.filter(
-                user=user,
-                otp=otp,
-                is_used=False,
-                expires_at__gt=timezone.now()
-            ).order_by('-created_at').first()
-            
-            if not token:
-                return Response({"error": "Invalid or expired OTP"}, status=400)
-            
-            token.is_used = True
-            token.save()
-            
-            user.is_email_verified = True
-            user.save()
-            
-            return Response({"message": "Email verified successfully"}, status=200)
-            
-        except User.DoesNotExist:
-            return Response({"error": "User with this email does not exist"}, status=404)
-        except Exception as e:
-            return Response({"error": str(e)}, status=400)
-        
 
 
 class RegistrationView(APIView):
