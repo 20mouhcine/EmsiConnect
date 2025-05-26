@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Camera, Save, X } from "lucide-react";
 import api from "@/lib/axios";
@@ -152,7 +151,7 @@ const ProfileEditForm = () => {
       {/* Bio */}
       <div>
         <Label htmlFor="bio">Bio</Label>
-        <Textarea 
+        <textarea 
           id="bio" 
           name="bio" 
           value={formData.bio} 

@@ -7,7 +7,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import api from "@/lib/axios";
 
 const CommentCard = ({ comment, onCommentUpdated, onCommentDeleted }) => {
@@ -74,7 +73,7 @@ const CommentCard = ({ comment, onCommentUpdated, onCommentDeleted }) => {
           
           {isEditing ? (
             <div className="mt-1 w-full">
-              <Textarea
+              <textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
                 className="w-full resize-none"
