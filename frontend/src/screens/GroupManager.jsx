@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea.jsx";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -174,7 +173,7 @@ const GroupForm = memo(
             <Label htmlFor="bio" className="text-right">
               Description
             </Label>
-            <Textarea
+            <textarea
               id="bio"
               name="bio"
               value={formData.bio || ""}
